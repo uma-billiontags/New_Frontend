@@ -1,9 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LogOut, Settings, LayoutDashboard, 
-  Receipt, Users,
-  Bell, Building2, MapPinned,
-  type LucideIcon, Megaphone, BarChart3, Wallet, CalendarClock, Globe2 
+  LogOut, Settings, LayoutDashboard, UsersRound, CheckCircle2, ClipboardList,
+  Bell, AlertTriangle,
+  type LucideIcon,
 } from 'lucide-react';
 import type { RefObject } from "react";
 
@@ -28,30 +27,44 @@ const NAV: NavGroup[] = [
   {
     section: "ADMINISTRATION",
     items: [
-      { label: "Dashboard", icon: LayoutDashboard, to: "/management/overview" },
+      { label: "Dashboard", icon: LayoutDashboard, to: "/account_manager/overview" },
     ],
   },
   {
     section: "EMAIL",
     items: [
-      { label: "Leads", icon: Receipt, to: "/management/leads" },
+      { label: "Leads", icon: UsersRound, to: "/account_manager/leads" },
     ],
   },
-   {
-    section: "CATEGORIES",
+  {
+    section: "Campaigns",
     items: [
-      { label: "Departments", icon: Building2, to: "/management/categories/departments" },
-      { label: "Team & Access", icon: Users, to: "/management/categories/teamaccess" },
-      { label: "Invoice Bank Details", icon: Receipt, to: "/management/categories/invoice_bank_details" },
-      { label: "Invoice Company Address", icon: MapPinned, to: "/management/categories/invoice_company_address" },
-      { label: "Authorized Person", icon: Users, to: "/management/categories/invoice_authorized_person" },
-       { label: "Ad Formats", icon: Megaphone, to: "/management/categories/ads_formats" },
-      { label: "Metrics", icon: BarChart3, to: "/management/categories/metrics" },
-      { label: "Mode of Payment", icon: Wallet, to: "/management/categories/mode_of_payment" },
-      { label: "Payment Terms", icon: CalendarClock, to: "/management/categories/payment_terms" },
-      { label: "Ethnicity", icon: Globe2, to: "/management/categories/ethnicity" },
+      { label: "Campaigns", icon: ClipboardList, to: "/account_manager/campaigns" },
     ],
   },
+  {
+    section: "STATUS",
+    items: [
+        { label: "Completed Users", icon: CheckCircle2, to: "/account_manager/status/completed_users" },
+        { label: "Overdue Users", icon: AlertTriangle, to: "/account_manager/status/overdue_users" },
+    ],
+},
+
+  //    {
+  //     section: "CATEGORIES",
+  //     items: [
+  //       { label: "Departments", icon: Building2, to: "/management/categories/departments" },
+  //       { label: "Team & Access", icon: Users, to: "/management/categories/teamaccess" },
+  //       { label: "Invoice Bank Details", icon: Receipt, to: "/management/categories/invoice_bank_details" },
+  //       { label: "Invoice Company Address", icon: MapPinned, to: "/management/categories/invoice_company_address" },
+  //       { label: "Authorized Person", icon: Users, to: "/management/categories/invoice_authorized_person" },
+  //        { label: "Ad Formats", icon: Megaphone, to: "/management/categories/ads_formats" },
+  //       { label: "Metrics", icon: BarChart3, to: "/management/categories/metrics" },
+  //       { label: "Mode of Payment", icon: Wallet, to: "/management/categories/mode_of_payment" },
+  //       { label: "Payment Terms", icon: CalendarClock, to: "/management/categories/payment_terms" },
+  //       { label: "Ethnicity", icon: Globe2, to: "/management/categories/ethnicity" },
+  //     ],
+  //   },
 ];
 
 // ── Notification type (mirrors the one in Layout) ─────────────────────────────
@@ -64,7 +77,7 @@ interface Notification {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-interface ManagementSidebarProps {
+interface AccountManagerSidebarProps {
   notifications: Notification[];
   unreadCount: number;
   showDropdown: boolean;
@@ -75,14 +88,14 @@ interface ManagementSidebarProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function Management_Sidebar({
+export default function AccountManager_Sidebar({
   notifications,
   unreadCount,
   showDropdown,
   onToggleDropdown,
   onClearAll,
   dropdownRef,
-}: ManagementSidebarProps) {
+}: AccountManagerSidebarProps) {
   const location = useLocation();
 
   return (
@@ -198,7 +211,7 @@ export default function Management_Sidebar({
           </div>
         </div>
 
-        <div className="db-logo-sub">Management Portal</div>
+        <div className="db-logo-sub">Account Manager Portal</div>
       </div>
 
       {/* Nav */}
@@ -212,7 +225,7 @@ export default function Management_Sidebar({
             {group.items.map((item) => {
               const active =
                 location.pathname === item.to ||
-                (item.to !== "/management/overview" &&
+                (item.to !== "/account_manager/overview" &&
                   location.pathname.startsWith(item.to));
               const hasChildren = item.children && item.children.length > 0;
               const Icon = item.icon;
@@ -234,7 +247,7 @@ export default function Management_Sidebar({
                     {item.badge !== undefined && (
                       <span className="db-nav-badge">{item.badge}</span>
                     )}
-                    
+
                   </Link>
 
                   {hasChildren && (
@@ -286,7 +299,7 @@ export default function Management_Sidebar({
         <div className="db-sidebar-user">
           <div className="db-sidebar-avatar">M</div>
           <div>
-            <div className="db-sidebar-uname">Management</div>
+            <div className="db-sidebar-uname">Account Manager</div>
             <div className="db-sidebar-urole">ADMINISTRATOR</div>
           </div>
         </div>

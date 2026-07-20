@@ -1,10 +1,47 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
 import 'antd/dist/reset.css';
+import './index.css'
 import App from './App';
+
+import { ConfigProvider } from "antd";
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ConfigProvider
+      theme={{
+        token: {
+          fontFamily: "'Poppins', sans-serif",
+          fontSize: 13,
+          colorText: "#0A0A0A",
+          colorTextPlaceholder: "#9CA3AF",
+          colorTextDisabled: "#9CA3AF",
+          colorBgContainer: "#F3F4F6",
+          colorBgContainerDisabled: "#FFFFFF",
+          colorBorder: "rgba(0, 0, 0, 0.14)",
+          colorPrimary: "#3A3A3A",
+          borderRadius: 8,
+          borderRadiusLG: 12,
+          controlHeight: 38,
+          colorBgElevated: "#FFFFFF",
+          boxShadowSecondary: "0 4px 24px rgba(0, 0, 0, 0.06)",
+          controlItemBgHover: "rgba(17, 17, 17, 0.06)",   // hover row — light gray
+          controlItemBgActive: "rgba(17, 17, 17, 0.06)",  // ← selected row — now light gray, not black
+
+          colorPrimaryBorder: "#3A3A3A",
+          controlOutline: "rgba(17, 17, 17, 0.12)",
+          controlOutlineWidth: 2,
+        },
+        components: {
+          Select: {
+            optionSelectedColor: "#0A0A0A",   // ← selected option text — now text-primary, not white
+            optionSelectedFontWeight: 600,    // slightly bolder to still signal "selected"
+            optionSelectedBg: "rgba(17, 17, 17, 0.06)", // explicit per-component override, belt-and-suspenders
+          },
+        },
+      }}
+    >
+      <App />
+    </ConfigProvider>
   </StrictMode>,
 )

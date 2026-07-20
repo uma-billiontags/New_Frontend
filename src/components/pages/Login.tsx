@@ -7,7 +7,8 @@ const BASE_URL = import.meta.env.VITE_BASE_URL;
 // department dashboard-key -> route. Add more entries here as new departments are onboarded.
 const dashboardRedirectMap: Record<string, string> = {
   account_manager: "/account_manager",
-  creative_ops: "/creative_ops",
+  creative_ops: "/creative_team",
+  campaign_ops: "/campaign_team",
 };
 
 export default function Login() {

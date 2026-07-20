@@ -395,7 +395,7 @@ export default function Leads_Account_Manager() {
         },
         {
             title: "Subject", dataIndex: "subject", key: "subject", width: 240,
-            render: (v: string) => <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{truncate(v, 60)}</span>,
+            render: (v: string) => <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>{truncate(v, 60)}</span>,
         },
         {
             title: "Body Preview", dataIndex: "body", key: "body", width: 240,
@@ -414,7 +414,7 @@ export default function Leads_Account_Manager() {
             render: (v: string) => <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>{fmtDateTime(v)}</span>,
         },
         {
-            title: "Actions", key: "actions", width: 220, fixed: "right",
+            title: "Actions", key: "actions", width: 240, fixed: "right",
             render: (_: any, record: Lead) => (
                 <div style={{ display: "flex", gap: 6 }}>
                     <Button size="small" icon={<EyeOutlined />} onClick={() => setSelectedLead(record)}
@@ -435,7 +435,7 @@ export default function Leads_Account_Manager() {
                         </Button>
                     ) : (
                         <Button size="small" type="primary" icon={<RocketOutlined />} onClick={() => handleCreateCampaign(record)}
-                            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6 }}>
+                            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, color: "var(--green)", background: "var(--green-bg)", border: "1px solid var(--green)", opacity: 1,}}>
                             Create Campaign
                         </Button>
                     )}

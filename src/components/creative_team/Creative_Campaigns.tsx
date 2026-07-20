@@ -1,7 +1,8 @@
 // Creative_Campaigns.tsx
-// Shows the campaigns/tasks assigned to the CURRENTLY LOGGED-IN creative ops user only.
-// Each row shows the turnaround deadline, a live countdown, current status,
-// and a "Mark Complete" action that calls /tasks/mark_task_complete/<task_id>/.
+// Shows the campaigns (grouped by Ticket ID) assigned to the CURRENTLY LOGGED-IN creative ops
+// user only. Each row shows the turnaround deadline, a live countdown, current status, and a
+// "Mark Complete" action that calls /tasks/mark_task_complete/<task_id>/. Expanding a row shows
+// its line items with the full creatives breakdown (CreativesCell).
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,12 +12,47 @@ import {
   CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import CreativesCell from './CreativesCell';
 
 const { Text } = Typography;
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+interface CreativeDetail {
+  id?: number;
+  type?: 'standard' | 'third_party';
+  creative_name?: string;
+  dimensions?: string;
+  click_through_url?: string;
+  appended_html_tag?: string;
+  main_asset?: string;
+  main_asset_url?: string;
+  creative_id?: string;
+}
+
+interface LineItem {
+  line_item_id: string;
+  line_item_name: string;
+  start_date: string;
+  end_date: string;
+  ad_format: string | string[];
+  ad_sub_format?: string;
+  ethnicity?: string | string[];
+  impressions?: string;
+  status?: string;
+  creatives?: CreativeDetail[];
+  image_creatives?: string[];
+  video_creatives?: string[];
+  third_party_creatives?: {
+    id?: number;
+    input_file?: string;
+    input_file_url?: string;
+    backup_image?: string;
+    creative_id?: string;
+  }[];
+}
+
 interface Campaign {
   campaign_id: string;
   ticket_id?: string | null;
@@ -25,7 +61,7 @@ interface Campaign {
   client_name?: string;
   start_date?: string;
   end_date?: string;
-  line_items?: { line_item_id: string }[];
+  line_items?: LineItem[];
   approval_status?: string;
 }
 
@@ -101,15 +137,15 @@ function statusTag(status: MyTask['status']) {
 // ── StatCard — flat style matching Platform Overview / All Campaigns cards ──
 function StatCard({ label, value, changeLabel, changeType }: {
   label: string; value: number; changeLabel: string;
-  changeType: "up" | "down" | "neutral";
+  changeType: 'up' | 'down' | 'neutral';
 }) {
   return (
     <div className="db-stat-card">
       <div className="db-stat-label">{label}</div>
       <div className="db-stat-value">{value}</div>
       <div
-        className={`db-stat-change ${changeType === "neutral" ? "" : changeType}`}
-        style={changeType === "neutral" ? { color: "var(--text-muted)" } : undefined}
+        className={`db-stat-change ${changeType === 'neutral' ? '' : changeType}`}
+        style={changeType === 'neutral' ? { color: 'var(--text-muted)' } : undefined}
       >
         {changeLabel}
       </div>
@@ -139,7 +175,7 @@ export default function Creative_Campaigns() {
     }
     setLoading(true);
     try {
-      // 1. All campaigns with a ticket_id (approval_status is irrelevant here)
+      // 1. All campaigns that carry a ticket_id
       const campRes = await fetch(`${BASE_URL}/campaigns/get_campaigns/`, {
         headers: { 'ngrok-skip-browser-warning': '1' },
       });
@@ -166,7 +202,7 @@ export default function Creative_Campaigns() {
       // 3. Keep only assignments belonging to the logged-in user
       const myAssignments = assignments.filter(a => String(getAssignedToId(a)) === String(userId));
 
-      // 4. Merge campaign details onto each of my assignments
+      // 4. Merge full campaign details (incl. line items + creatives) onto each of my assignments
       const merged: MyTask[] = myAssignments
         .map(a => {
           const campaign = withTicket.find(c => c.ticket_id === a.ticket_id);
@@ -208,7 +244,6 @@ export default function Creative_Campaigns() {
     const q = search.toLowerCase();
     setFiltered(tasks.filter(t =>
       t.campaign_name?.toLowerCase().includes(q) ||
-      t.campaign_id?.toLowerCase().includes(q) ||
       t.ticket_id?.toLowerCase().includes(q) ||
       t.advertiser?.toLowerCase().includes(q)
     ));
@@ -242,24 +277,78 @@ export default function Creative_Campaigns() {
     }
   };
 
-  const columns: ColumnsType<MyTask> = [
+  // ── Expanded row: line items + creatives (same pattern as Creative_Dashboard) ──
+  const lineItemColumns: ColumnsType<LineItem> = [
     {
-      title: 'Ticket ID', dataIndex: 'ticket_id', key: 'ticket_id', width: 120, fixed: 'left',
+      title: 'Line Item ID', dataIndex: 'line_item_id', width: 140,
       render: (v: string) => (
         <span style={{
-          fontSize: 11, fontWeight: 700, color: "var(--blue)",
-          background: "var(--blue-bg)", border: `1px solid var(--blue)`,
-          padding: '2px 8px', borderRadius: 6, whiteSpace: 'nowrap',
+          fontSize: 11, fontWeight: 700,
+          color: 'var(--purple)', background: 'var(--purple-bg)', padding: '2px 6px', borderRadius: 4,
+        }}>{v}</span>
+      ),
+    },
+    {
+      title: 'Line Item Name', dataIndex: 'line_item_name', width: 180,
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'Start Date', dataIndex: 'start_date', width: 110,
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'End Date', dataIndex: 'end_date', width: 110,
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'Ad Format', dataIndex: 'ad_format', width: 140,
+      render: (v: string | string[], r: LineItem) => {
+        const fmt = Array.isArray(v) ? v[0] : v;
+        const sub = r.ad_sub_format;
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {fmt && <Tag color="blue" style={{ fontSize: 10, width: 'fit-content' }}>{fmt}</Tag>}
+            {sub && <Tag color="purple" style={{ fontSize: 10, width: 'fit-content' }}>{sub}</Tag>}
+            {!fmt && <Text style={{ color: 'var(--text-muted)' }}>—</Text>}
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Ethnicity', dataIndex: 'ethnicity', width: 140,
+      render: (v: string | string[]) => {
+        const arr = Array.isArray(v) ? v : (v ? [v] : []);
+        return arr.length > 0
+          ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+            {arr.map((e: string) => <Tag key={e} style={{ fontSize: 10 }}>{e}</Tag>)}
+          </div>
+          : <Text style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</Text>;
+      },
+    },
+    {
+      title: 'Creatives', key: 'creatives', width: 220,
+      render: (_: any, r: LineItem) => <CreativesCell li={r} />,
+    },
+  ];
+
+  const columns: ColumnsType<MyTask> = [
+    {
+      title: 'Ticket ID', dataIndex: 'ticket_id', key: 'ticket_id', width: 130, fixed: 'left',
+      render: (v: string) => (
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: 'var(--blue)',
+          background: 'var(--blue-bg)', border: '1px solid var(--blue)',
+          padding: '2px 10px', borderRadius: 6, whiteSpace: 'nowrap', display: 'inline-block',
         }}>{v}</span>
       ),
     },
     {
       title: 'Campaign Name', dataIndex: 'campaign_name', key: 'campaign_name', width: 200,
-      render: (v: string) => <Text strong style={{ fontSize: 13, color: "var(--text-primary)" }}>{v || '—'}</Text>,
+      render: (v: string) => <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>{v || '—'}</Text>,
     },
     {
       title: 'Advertiser', dataIndex: 'advertiser', key: 'advertiser', width: 150,
-      render: (v: string) => <Text style={{ fontSize: 12, color: "var(--text-secondary)" }}>{v || '—'}</Text>,
+      render: (v: string) => <Text style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{v || '—'}</Text>,
     },
     {
       title: 'Line Items', key: 'line_items_count', width: 100,
@@ -272,7 +361,7 @@ export default function Creative_Campaigns() {
     {
       title: 'Turnaround', dataIndex: 'deadline_hours', key: 'deadline_hours', width: 110,
       render: (v: number | null) => {
-        if (!v) return <Text style={{ color: "var(--text-secondary)", fontSize: 12 }}>—</Text>;
+        if (!v) return <Text style={{ color: 'var(--text-secondary)', fontSize: 12 }}>—</Text>;
         if (v < 1) return <Text style={{ fontSize: 12 }}>{Math.round(v * 60)}m</Text>;
         if (v < 24) return <Text style={{ fontSize: 12 }}>{v}h</Text>;
         return <Text style={{ fontSize: 12 }}>{Math.round(v / 24)}d</Text>;
@@ -281,13 +370,13 @@ export default function Creative_Campaigns() {
     {
       title: 'Due In', key: 'due_in', width: 150,
       render: (_: any, r: MyTask) => {
-        if (r.status === 'completed') return <Text style={{ color: "var(--text-secondary)", fontSize: 12 }}>Done</Text>;
+        if (r.status === 'completed') return <Text style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Done</Text>;
         const { label, overdue } = formatCountdown(r.due_at);
         return (
           <span style={{
             fontSize: 11, fontWeight: 700,
-            color: overdue ? "var(--red)" : "var(--text-primary)",
-            background: overdue ? "var(--red-bg)" : 'transparent',
+            color: overdue ? 'var(--red)' : 'var(--text-primary)',
+            background: overdue ? 'var(--red-bg)' : 'transparent',
             padding: overdue ? '3px 8px' : 0,
             borderRadius: 6,
           }}>
@@ -309,7 +398,7 @@ export default function Creative_Campaigns() {
             size="small"
             icon={<EyeOutlined />}
             onClick={() => navigate(`/creative/${r.campaign_id}`)}
-            style={{ fontSize: 11, fontWeight: 600, color: "var(--blue)", background: "var(--blue-bg)", border: `1px solid var(--blue)`, borderRadius: 6 }}
+            style={{ fontSize: 11, fontWeight: 600, color: 'var(--blue)', background: 'var(--blue-bg)', border: '1px solid var(--blue)', borderRadius: 6 }}
           >
             View
           </Button>
@@ -325,7 +414,7 @@ export default function Creative_Campaigns() {
                 size="small"
                 icon={<CheckCircleOutlined />}
                 loading={completingId === r.task_id}
-                style={{ fontSize: 11, fontWeight: 600, color: "var(--green)", background: "var(--green-bg)", border: `1px solid var(--green)`, borderRadius: 6 }}
+                style={{ fontSize: 11, fontWeight: 600, color: 'var(--green)', background: 'var(--green-bg)', border: '1px solid var(--green)', borderRadius: 6 }}
               >
                 Mark Complete
               </Button>
@@ -340,97 +429,98 @@ export default function Creative_Campaigns() {
     <div>
       {/* ── Page Header ── */}
       <div style={{
-        display: "flex", justifyContent: "space-between",
-        alignItems: "center", marginBottom: 18, borderBottom: "1px solid var(--border)", paddingBottom: 8,
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: 18, borderBottom: '1px solid var(--border)', paddingBottom: 8,
       }}>
         <div>
-          <h1 style={{ fontSize: 17, fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>
+          <h1 style={{ fontSize: 17, fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
             My Tasks — Creative Ops
           </h1>
-          <p style={{ fontSize: 9, color: "var(--text-muted)", margin: "4px 0 0", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          <p style={{ fontSize: 9, color: 'var(--text-muted)', margin: '4px 0 0', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             CAMPAIGNS ASSIGNED TO YOU
           </p>
         </div>
       </div>
 
-      {/* ── Stat Cards — flat style matching Platform Overview / All Campaigns ── */}
-      <div className="db-stat-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <StatCard
-          label="Pending / In Progress"
-          value={pendingCount}
-          changeLabel="Awaiting action"
-          changeType="neutral"
-        />
-        <StatCard
-          label="Overdue"
-          value={overdueCount}
-          changeLabel={overdueCount > 0 ? "Needs attention" : "None overdue"}
-          changeType={overdueCount > 0 ? "down" : "neutral"}
-        />
-        <StatCard
-          label="Completed"
-          value={completedCount}
-          changeLabel="Done"
-          changeType="up"
-        />
+      {/* ── Stat Cards ── */}
+      <div className="db-stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        <StatCard label="Pending / In Progress" value={pendingCount} changeLabel="Awaiting action" changeType="neutral" />
+        <StatCard label="Overdue" value={overdueCount} changeLabel={overdueCount > 0 ? 'Needs attention' : 'None overdue'} changeType={overdueCount > 0 ? 'down' : 'neutral'} />
+        <StatCard label="Completed" value={completedCount} changeLabel="Done" changeType="up" />
       </div>
 
       {/* ── Search Bar ── */}
-      <div style={{ marginBottom: 16, marginTop: 4, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ marginBottom: 16, marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Input
           placeholder="Search by campaign name, ticket, advertiser…"
-          prefix={<SearchOutlined style={{ color: "var(--text-muted)" }} />}
+          prefix={<SearchOutlined style={{ color: 'var(--text-muted)' }} />}
           value={search}
           onChange={e => setSearch(e.target.value)}
           allowClear
-          style={{ flex: 1, minWidth: 240, height: 36, background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }}
+          style={{ flex: 1, minWidth: 240, height: 36, background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
         />
         <Button
           icon={<ReloadOutlined />}
           onClick={fetchMyTasks}
           style={{
-            height: 36,
-            borderRadius: 8,
-            border: "1px solid var(--text-muted)",
-            background: "var(--bg-input)",
-            color: "var(--text-secondary)",
-            fontSize: 12,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            paddingInline: 14,
-            transition: "background 0.15s, color 0.15s, border-color 0.15s",
+            height: 36, borderRadius: 8, border: '1px solid var(--text-muted)',
+            background: 'var(--bg-input)', color: 'var(--text-secondary)',
+            fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, paddingInline: 14,
+            transition: 'background 0.15s, color 0.15s, border-color 0.15s',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--accent-light)";
-            e.currentTarget.style.color = "var(--accent)";
-            e.currentTarget.style.borderColor = "var(--accent)";
+            e.currentTarget.style.background = 'var(--accent-light)';
+            e.currentTarget.style.color = 'var(--accent)';
+            e.currentTarget.style.borderColor = 'var(--accent)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "var(--bg-input)";
-            e.currentTarget.style.color = "var(--text-secondary)";
-            e.currentTarget.style.borderColor = "var(--border)";
+            e.currentTarget.style.background = 'var(--bg-input)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--border)';
           }}
         >
           Refresh
         </Button>
-        <Text style={{ marginLeft: 'auto', fontSize: 12, color: "var(--text-muted)" }}>
+        <Text style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           {filtered.length} of {tasks.length} tasks
         </Text>
       </div>
 
       {/* ── Table ── */}
-      <div style={{ background: "var(--bg-card)", borderRadius: 14, border: `1px solid var(--border)`, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
+      <div style={{ background: 'var(--bg-card)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
         <Table
           columns={columns}
           dataSource={filtered}
           rowKey="task_id"
           loading={loading}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1300 }}
           pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t, r) => `${r[0]}–${r[1]} of ${t}` }}
           locale={{ emptyText: 'No tasks assigned to you right now.' }}
-          rowClassName={() => "all-campaigns-row"}
+          rowClassName={() => 'all-campaigns-row'}
+          expandable={{
+            expandedRowRender: (record: MyTask) => {
+              if (!record.line_items || record.line_items.length === 0) {
+                return <Text style={{ color: 'var(--text-muted)', fontSize: 12 }}>No line items.</Text>;
+              }
+              return (
+                <div style={{ padding: '8px 0' }}>
+                  <Text strong style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 8, display: 'block' }}>
+                    Line Items ({record.line_items.length})
+                  </Text>
+                  <Table
+                    size="small"
+                    dataSource={record.line_items}
+                    rowKey="line_item_id"
+                    pagination={false}
+                    columns={lineItemColumns}
+                    scroll={{ x: 1100 }}
+                    style={{ background: 'var(--bg-page)', borderRadius: 8 }}
+                  />
+                </div>
+              );
+            },
+            rowExpandable: () => true,
+          }}
           style={{ fontSize: 13 }}
         />
       </div>

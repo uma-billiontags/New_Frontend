@@ -1,13 +1,14 @@
-// Creative_Campaigns.tsx
-// Shows the campaigns/tasks assigned to the CURRENTLY LOGGED-IN creative ops user only.
-// Each row shows the turnaround deadline, a live countdown, current status,
-// and a "Mark Complete" action that calls /tasks/mark_task_complete/<task_id>/.
+// Campaign_Campaigns.tsx
+// Shows the campaigns (grouped by Ticket ID) assigned to the CURRENTLY LOGGED-IN campaign ops
+// user only. Each row shows the turnaround deadline, a live countdown, current status, and a
+// "Mark Complete" action. Expanding a row shows line items with the Creative IDs entered by
+// the creative team (read-only, copyable) — ready to be pasted into DV360 etc.
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Tag, Input, Button, Typography, message, Popconfirm } from 'antd';
 import {
-  SearchOutlined, ReloadOutlined, EyeOutlined,
+  SearchOutlined, ReloadOutlined, EyeOutlined, CopyOutlined, CheckOutlined,
   CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -17,6 +18,28 @@ const { Text } = Typography;
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+interface CreativeDetail {
+  id?: number;
+  type?: 'standard' | 'third_party';
+  creative_name?: string;
+  creative_id?: string;
+}
+
+interface LineItem {
+  line_item_id: string;
+  line_item_name: string;
+  start_date: string;
+  end_date: string;
+  ad_format: string | string[];
+  ad_sub_format?: string;
+  ethnicity?: string | string[];
+  impressions?: string;
+  status?: string;
+  dv_id?: string;
+  creatives?: CreativeDetail[];
+  third_party_creatives?: { id?: number; creative_id?: string; input_file?: string }[];
+}
+
 interface Campaign {
   campaign_id: string;
   ticket_id?: string | null;
@@ -25,11 +48,10 @@ interface Campaign {
   client_name?: string;
   start_date?: string;
   end_date?: string;
-  line_items?: { line_item_id: string }[];
+  line_items?: LineItem[];
   approval_status?: string;
 }
 
-// Shape returned by /tasks/get_assignments_for_tickets/ (TaskAssignmentSerializer)
 interface TaskAssignmentRecord {
   id: number;
   ticket_id: string;
@@ -43,7 +65,6 @@ interface TaskAssignmentRecord {
   completed_at?: string | null;
 }
 
-// Merged row used by the table
 interface MyTask extends Campaign {
   task_id: number;
   status: TaskAssignmentRecord['status'];
@@ -52,7 +73,7 @@ interface MyTask extends Campaign {
   assigned_at: string | null;
 }
 
-const TASK_TYPE = 'creative_ops';
+const TASK_TYPE = 'campaign_ops';   // ← the only task-type difference from Creative_Campaigns
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getAssignedToId(rec: TaskAssignmentRecord): number | undefined {
@@ -98,18 +119,64 @@ function statusTag(status: MyTask['status']) {
   );
 }
 
-// ── StatCard — flat style matching Platform Overview / All Campaigns cards ──
+// ── Read-only Creative ID cell with copy (mirrors Campaign_Dashboard style) ──
+function CreativeIdDisplay({ id, name }: { id: string; name?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(id).then(() => {
+      setCopied(true);
+      message.success({ content: 'Creative ID copied!', duration: 1.5 });
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => message.error('Failed to copy'));
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      {name && (
+        <span title={name} style={{
+          fontSize: 11, color: 'var(--text-secondary)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110,
+        }}>{name}:</span>
+      )}
+      <span style={{
+        fontSize: 10, fontWeight: 700,
+        color: 'var(--accent)', background: 'var(--accent-light)',
+        padding: '2px 8px', borderRadius: 4,
+        border: '1px solid var(--accent)', whiteSpace: 'nowrap',
+      }}>{id}</span>
+      <button
+        onClick={handleCopy}
+        title={copied ? 'Copied!' : 'Copy Creative ID'}
+        style={{
+          background: copied ? 'var(--green-bg)' : 'var(--bg-input)',
+          border: `1px solid ${copied ? 'var(--green)' : 'var(--border)'}`,
+          borderRadius: 4, cursor: 'pointer', padding: '2px 5px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.2s', outline: 'none', flexShrink: 0,
+        }}
+      >
+        {copied
+          ? <CheckOutlined style={{ fontSize: 10, color: 'var(--green)' }} />
+          : <CopyOutlined style={{ fontSize: 10, color: 'var(--text-secondary)' }} />}
+      </button>
+    </div>
+  );
+}
+
+// ── StatCard ──────────────────────────────────────────────────────────────────
 function StatCard({ label, value, changeLabel, changeType }: {
   label: string; value: number; changeLabel: string;
-  changeType: "up" | "down" | "neutral";
+  changeType: 'up' | 'down' | 'neutral';
 }) {
   return (
     <div className="db-stat-card">
       <div className="db-stat-label">{label}</div>
       <div className="db-stat-value">{value}</div>
       <div
-        className={`db-stat-change ${changeType === "neutral" ? "" : changeType}`}
-        style={changeType === "neutral" ? { color: "var(--text-muted)" } : undefined}
+        className={`db-stat-change ${changeType === 'neutral' ? '' : changeType}`}
+        style={changeType === 'neutral' ? { color: 'var(--text-muted)' } : undefined}
       >
         {changeLabel}
       </div>
@@ -118,7 +185,7 @@ function StatCard({ label, value, changeLabel, changeType }: {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function Creative_Campaigns() {
+export default function Campaign_Campaigns() {
   const navigate = useNavigate();
 
   const [tasks, setTasks] = useState<MyTask[]>([]);
@@ -126,11 +193,10 @@ export default function Creative_Campaigns() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [completingId, setCompletingId] = useState<number | null>(null);
-  const [, forceTick] = useState(0); // re-render every 30s so countdowns stay live
+  const [, forceTick] = useState(0);
 
   const userId = localStorage.getItem('user_id');
 
-  // ── Fetch: campaigns + assignments, merged & scoped to this user ──
   const fetchMyTasks = useCallback(async () => {
     if (!userId) {
       message.error('No logged-in user found. Please log in again.');
@@ -139,7 +205,6 @@ export default function Creative_Campaigns() {
     }
     setLoading(true);
     try {
-      // 1. All campaigns with a ticket_id (approval_status is irrelevant here)
       const campRes = await fetch(`${BASE_URL}/campaigns/get_campaigns/`, {
         headers: { 'ngrok-skip-browser-warning': '1' },
       });
@@ -155,7 +220,6 @@ export default function Creative_Campaigns() {
         return;
       }
 
-      // 2. Task assignments for those tickets, this department's task_type only
       const assignRes = await fetch(
         `${BASE_URL}/tasks/get_assignments_for_tickets/?ticket_ids=${encodeURIComponent(ticketIds.join(','))}&task_type=${TASK_TYPE}`,
         { headers: { 'ngrok-skip-browser-warning': '1' } }
@@ -163,10 +227,8 @@ export default function Creative_Campaigns() {
       if (!assignRes.ok) throw new Error('assignments');
       const assignments: TaskAssignmentRecord[] = await assignRes.json();
 
-      // 3. Keep only assignments belonging to the logged-in user
       const myAssignments = assignments.filter(a => String(getAssignedToId(a)) === String(userId));
 
-      // 4. Merge campaign details onto each of my assignments
       const merged: MyTask[] = myAssignments
         .map(a => {
           const campaign = withTicket.find(c => c.ticket_id === a.ticket_id);
@@ -181,7 +243,6 @@ export default function Creative_Campaigns() {
           } as MyTask;
         })
         .filter((t): t is MyTask => t !== null)
-        // show pending/in_progress first, completed at the bottom
         .sort((a, b) => (a.status === 'completed' ? 1 : 0) - (b.status === 'completed' ? 1 : 0));
 
       setTasks(merged);
@@ -197,7 +258,6 @@ export default function Creative_Campaigns() {
 
   useEffect(() => { fetchMyTasks(); }, [fetchMyTasks]);
 
-  // live-refresh countdown labels every 30s (no refetch, just re-render)
   useEffect(() => {
     const t = setInterval(() => forceTick(x => x + 1), 30000);
     return () => clearInterval(t);
@@ -208,7 +268,6 @@ export default function Creative_Campaigns() {
     const q = search.toLowerCase();
     setFiltered(tasks.filter(t =>
       t.campaign_name?.toLowerCase().includes(q) ||
-      t.campaign_id?.toLowerCase().includes(q) ||
       t.ticket_id?.toLowerCase().includes(q) ||
       t.advertiser?.toLowerCase().includes(q)
     ));
@@ -221,7 +280,6 @@ export default function Creative_Campaigns() {
   }).length;
   const completedCount = tasks.filter(t => t.status === 'completed').length;
 
-  // ── Mark a task complete ──
   const handleMarkComplete = async (task: MyTask) => {
     setCompletingId(task.task_id);
     try {
@@ -242,24 +300,112 @@ export default function Creative_Campaigns() {
     }
   };
 
-  const columns: ColumnsType<MyTask> = [
+  // ── Expanded row: line items with Creative IDs (read-only display) ──
+  const lineItemColumns: ColumnsType<LineItem> = [
     {
-      title: 'Ticket ID', dataIndex: 'ticket_id', key: 'ticket_id', width: 120, fixed: 'left',
+      title: 'Line Item ID', dataIndex: 'line_item_id', width: 140,
       render: (v: string) => (
         <span style={{
-          fontSize: 11, fontWeight: 700, color: "var(--blue)",
-          background: "var(--blue-bg)", border: `1px solid var(--blue)`,
-          padding: '2px 8px', borderRadius: 6, whiteSpace: 'nowrap',
+          fontSize: 11, fontWeight: 700,
+          color: 'var(--purple)', background: 'var(--purple-bg)', padding: '2px 6px', borderRadius: 4,
+        }}>{v}</span>
+      ),
+    },
+    {
+      title: 'Line Item Name', dataIndex: 'line_item_name', width: 180,
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'DV ID', dataIndex: 'dv_id', width: 120,
+      render: (v: string) => v ? (
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: 'var(--green)',
+          background: 'var(--green-bg)', border: '1px solid var(--green)',
+          padding: '2px 8px', borderRadius: 6,
+        }}>{v}</span>
+      ) : <Text style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</Text>,
+    },
+    {
+      title: 'Start Date', dataIndex: 'start_date', width: 110,
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'End Date', dataIndex: 'end_date', width: 110,
+      render: (v: string) => <Text style={{ fontSize: 12 }}>{v || '—'}</Text>,
+    },
+    {
+      title: 'Ad Format', dataIndex: 'ad_format', width: 140,
+      render: (v: string | string[]) => {
+        const formats = Array.isArray(v) ? v : (v ? [v] : []);
+        return formats.length > 0
+          ? formats.map((f: string) => <Tag key={f} color="blue" style={{ fontSize: 10 }}>{f}</Tag>)
+          : <Text style={{ color: 'var(--text-muted)' }}>—</Text>;
+      },
+    },
+    {
+      title: 'Impressions', dataIndex: 'impressions', width: 120,
+      render: (v: string) => (
+        <Text style={{ fontSize: 12 }}>{v ? Number(v).toLocaleString('en-IN') : '—'}</Text>
+      ),
+    },
+    {
+      title: 'Creative IDs', key: 'creative_ids', width: 260,
+      render: (_: any, record: LineItem) => {
+        // gather all creatives (standard + third party) with their IDs
+        const std = (record.creatives ?? []).map(c => ({
+          id: c.creative_id, name: c.creative_name,
+        }));
+        const tp = (record.third_party_creatives ?? []).map((t, i) => ({
+          id: t.creative_id,
+          name: t.input_file ? t.input_file.split('/').pop() : `Third Party ${i + 1}`,
+        }));
+        const all = [...std, ...tp];
+
+        if (all.length === 0) {
+          return <Text style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</Text>;
+        }
+
+        const withId = all.filter(c => c.id);
+        const missingCount = all.length - withId.length;
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {withId.map((c, i) => (
+              <CreativeIdDisplay key={i} id={c.id as string} name={c.name} />
+            ))}
+            {missingCount > 0 && (
+              <span style={{
+                fontSize: 10, fontWeight: 600, color: 'var(--amber)',
+                background: 'var(--amber-bg)', border: '1px solid var(--amber)',
+                padding: '2px 8px', borderRadius: 4, width: 'fit-content',
+              }}>
+                {missingCount} creative{missingCount !== 1 ? 's' : ''} awaiting ID from creative team
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
+  const columns: ColumnsType<MyTask> = [
+    {
+      title: 'Ticket ID', dataIndex: 'ticket_id', key: 'ticket_id', width: 130, fixed: 'left',
+      render: (v: string) => (
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: 'var(--blue)',
+          background: 'var(--blue-bg)', border: '1px solid var(--blue)',
+          padding: '2px 10px', borderRadius: 6, whiteSpace: 'nowrap', display: 'inline-block',
         }}>{v}</span>
       ),
     },
     {
       title: 'Campaign Name', dataIndex: 'campaign_name', key: 'campaign_name', width: 200,
-      render: (v: string) => <Text strong style={{ fontSize: 13, color: "var(--text-primary)" }}>{v || '—'}</Text>,
+      render: (v: string) => <Text strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>{v || '—'}</Text>,
     },
     {
       title: 'Advertiser', dataIndex: 'advertiser', key: 'advertiser', width: 150,
-      render: (v: string) => <Text style={{ fontSize: 12, color: "var(--text-secondary)" }}>{v || '—'}</Text>,
+      render: (v: string) => <Text style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{v || '—'}</Text>,
     },
     {
       title: 'Line Items', key: 'line_items_count', width: 100,
@@ -272,7 +418,7 @@ export default function Creative_Campaigns() {
     {
       title: 'Turnaround', dataIndex: 'deadline_hours', key: 'deadline_hours', width: 110,
       render: (v: number | null) => {
-        if (!v) return <Text style={{ color: "var(--text-secondary)", fontSize: 12 }}>—</Text>;
+        if (!v) return <Text style={{ color: 'var(--text-secondary)', fontSize: 12 }}>—</Text>;
         if (v < 1) return <Text style={{ fontSize: 12 }}>{Math.round(v * 60)}m</Text>;
         if (v < 24) return <Text style={{ fontSize: 12 }}>{v}h</Text>;
         return <Text style={{ fontSize: 12 }}>{Math.round(v / 24)}d</Text>;
@@ -281,13 +427,13 @@ export default function Creative_Campaigns() {
     {
       title: 'Due In', key: 'due_in', width: 150,
       render: (_: any, r: MyTask) => {
-        if (r.status === 'completed') return <Text style={{ color: "var(--text-secondary)", fontSize: 12 }}>Done</Text>;
+        if (r.status === 'completed') return <Text style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Done</Text>;
         const { label, overdue } = formatCountdown(r.due_at);
         return (
           <span style={{
             fontSize: 11, fontWeight: 700,
-            color: overdue ? "var(--red)" : "var(--text-primary)",
-            background: overdue ? "var(--red-bg)" : 'transparent',
+            color: overdue ? 'var(--red)' : 'var(--text-primary)',
+            background: overdue ? 'var(--red-bg)' : 'transparent',
             padding: overdue ? '3px 8px' : 0,
             borderRadius: 6,
           }}>
@@ -308,8 +454,8 @@ export default function Creative_Campaigns() {
           <Button
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/creative/${r.campaign_id}`)}
-            style={{ fontSize: 11, fontWeight: 600, color: "var(--blue)", background: "var(--blue-bg)", border: `1px solid var(--blue)`, borderRadius: 6 }}
+            onClick={() => navigate(`/campaign_view_team/${r.campaign_id}`)}
+            style={{ fontSize: 11, fontWeight: 600, color: 'var(--blue)', background: 'var(--blue-bg)', border: '1px solid var(--blue)', borderRadius: 6 }}
           >
             View
           </Button>
@@ -325,7 +471,7 @@ export default function Creative_Campaigns() {
                 size="small"
                 icon={<CheckCircleOutlined />}
                 loading={completingId === r.task_id}
-                style={{ fontSize: 11, fontWeight: 600, color: "var(--green)", background: "var(--green-bg)", border: `1px solid var(--green)`, borderRadius: 6 }}
+                style={{ fontSize: 11, fontWeight: 600, color: 'var(--green)', background: 'var(--green-bg)', border: '1px solid var(--green)', borderRadius: 6 }}
               >
                 Mark Complete
               </Button>
@@ -340,97 +486,98 @@ export default function Creative_Campaigns() {
     <div>
       {/* ── Page Header ── */}
       <div style={{
-        display: "flex", justifyContent: "space-between",
-        alignItems: "center", marginBottom: 18, borderBottom: "1px solid var(--border)", paddingBottom: 8,
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: 18, borderBottom: '1px solid var(--border)', paddingBottom: 8,
       }}>
         <div>
-          <h1 style={{ fontSize: 17, fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>
-            My Tasks — Creative Ops
+          <h1 style={{ fontSize: 17, fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
+            My Tasks — Campaign Ops
           </h1>
-          <p style={{ fontSize: 9, color: "var(--text-muted)", margin: "4px 0 0", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          <p style={{ fontSize: 9, color: 'var(--text-muted)', margin: '4px 0 0', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             CAMPAIGNS ASSIGNED TO YOU
           </p>
         </div>
       </div>
 
-      {/* ── Stat Cards — flat style matching Platform Overview / All Campaigns ── */}
-      <div className="db-stat-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-        <StatCard
-          label="Pending / In Progress"
-          value={pendingCount}
-          changeLabel="Awaiting action"
-          changeType="neutral"
-        />
-        <StatCard
-          label="Overdue"
-          value={overdueCount}
-          changeLabel={overdueCount > 0 ? "Needs attention" : "None overdue"}
-          changeType={overdueCount > 0 ? "down" : "neutral"}
-        />
-        <StatCard
-          label="Completed"
-          value={completedCount}
-          changeLabel="Done"
-          changeType="up"
-        />
+      {/* ── Stat Cards ── */}
+      <div className="db-stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        <StatCard label="Pending / In Progress" value={pendingCount} changeLabel="Awaiting action" changeType="neutral" />
+        <StatCard label="Overdue" value={overdueCount} changeLabel={overdueCount > 0 ? 'Needs attention' : 'None overdue'} changeType={overdueCount > 0 ? 'down' : 'neutral'} />
+        <StatCard label="Completed" value={completedCount} changeLabel="Done" changeType="up" />
       </div>
 
       {/* ── Search Bar ── */}
-      <div style={{ marginBottom: 16, marginTop: 4, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ marginBottom: 16, marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Input
           placeholder="Search by campaign name, ticket, advertiser…"
-          prefix={<SearchOutlined style={{ color: "var(--text-muted)" }} />}
+          prefix={<SearchOutlined style={{ color: 'var(--text-muted)' }} />}
           value={search}
           onChange={e => setSearch(e.target.value)}
           allowClear
-          style={{ flex: 1, minWidth: 240, height: 36, background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }}
+          style={{ flex: 1, minWidth: 240, height: 36, background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
         />
         <Button
           icon={<ReloadOutlined />}
           onClick={fetchMyTasks}
           style={{
-            height: 36,
-            borderRadius: 8,
-            border: "1px solid var(--text-muted)",
-            background: "var(--bg-input)",
-            color: "var(--text-secondary)",
-            fontSize: 12,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            paddingInline: 14,
-            transition: "background 0.15s, color 0.15s, border-color 0.15s",
+            height: 36, borderRadius: 8, border: '1px solid var(--text-muted)',
+            background: 'var(--bg-input)', color: 'var(--text-secondary)',
+            fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, paddingInline: 14,
+            transition: 'background 0.15s, color 0.15s, border-color 0.15s',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--accent-light)";
-            e.currentTarget.style.color = "var(--accent)";
-            e.currentTarget.style.borderColor = "var(--accent)";
+            e.currentTarget.style.background = 'var(--accent-light)';
+            e.currentTarget.style.color = 'var(--accent)';
+            e.currentTarget.style.borderColor = 'var(--accent)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "var(--bg-input)";
-            e.currentTarget.style.color = "var(--text-secondary)";
-            e.currentTarget.style.borderColor = "var(--border)";
+            e.currentTarget.style.background = 'var(--bg-input)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--border)';
           }}
         >
           Refresh
         </Button>
-        <Text style={{ marginLeft: 'auto', fontSize: 12, color: "var(--text-muted)" }}>
+        <Text style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>
           {filtered.length} of {tasks.length} tasks
         </Text>
       </div>
 
       {/* ── Table ── */}
-      <div style={{ background: "var(--bg-card)", borderRadius: 14, border: `1px solid var(--border)`, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
+      <div style={{ background: 'var(--bg-card)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
         <Table
           columns={columns}
           dataSource={filtered}
           rowKey="task_id"
           loading={loading}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1300 }}
           pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t, r) => `${r[0]}–${r[1]} of ${t}` }}
           locale={{ emptyText: 'No tasks assigned to you right now.' }}
-          rowClassName={() => "all-campaigns-row"}
+          rowClassName={() => 'all-campaigns-row'}
+          expandable={{
+            expandedRowRender: (record: MyTask) => {
+              if (!record.line_items || record.line_items.length === 0) {
+                return <Text style={{ color: 'var(--text-muted)', fontSize: 12 }}>No line items.</Text>;
+              }
+              return (
+                <div style={{ padding: '8px 0' }}>
+                  <Text strong style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 8, display: 'block' }}>
+                    Line Items ({record.line_items.length})
+                  </Text>
+                  <Table
+                    size="small"
+                    dataSource={record.line_items}
+                    rowKey="line_item_id"
+                    pagination={false}
+                    columns={lineItemColumns}
+                    scroll={{ x: 1200 }}
+                    style={{ background: 'var(--bg-page)', borderRadius: 8 }}
+                  />
+                </div>
+              );
+            },
+            rowExpandable: () => true,
+          }}
           style={{ fontSize: 13 }}
         />
       </div>

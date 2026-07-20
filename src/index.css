@@ -217,14 +217,11 @@ body {
 
 .db-nav-item.active {
   background: #F3F4F6;
-  /* light gray fill, like --bg-input */
   color: var(--text-primary);
-  /* dark text instead of white */
 }
 
 .db-nav-item.active .db-nav-icon {
   color: var(--text-primary);
-  /* icon stays dark, not white */
 }
 
 .db-nav-icon {
@@ -788,13 +785,14 @@ body {
   }
 }
 
-.db-content {
-  animation: fadeUp 0.35s ease both;
+@keyframes ob-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.ant-input::placeholder {
-  color: var(--text-muted);
-  opacity: 1;
+.db-content {
+  animation: fadeUp 0.35s ease both;
 }
 
 /* ── Ant Design Table overrides ─────────────────────────────── */
@@ -812,8 +810,6 @@ body {
   border-right: none !important;
   border-bottom: 1px solid var(--border) !important;
   padding: 9px 12px !important;
-  /* ← was likely the antd default ~16px 16px, now reduced */
-
 }
 
 .ant-table-tbody>tr>td {
@@ -822,8 +818,6 @@ body {
   border-bottom: 1px solid var(--border) !important;
   border-right: none !important;
   padding: 10px 12px !important;
-  /* ← add this to shrink row height */
-
 }
 
 .ant-table-tbody>tr.ant-table-measure-row {
@@ -870,25 +864,6 @@ body {
   color: var(--text-primary) !important;
 }
 
-.ant-select-selector {
-  background: var(--bg-input) !important;
-  border-color: var(--border) !important;
-  color: var(--text-primary) !important;
-}
-
-.ant-select-arrow {
-  color: var(--text-muted) !important;
-}
-
-.ant-input-affix-wrapper:hover {
-  border-color: var(--text-muted) !important;
-}
-
-.ant-input-affix-wrapper-focused,
-.ant-input-affix-wrapper:focus {
-  border-color: var(--text-muted) !important;
-}
-
 /* ════════════════════════════════════════════════════════════════
    AntD MODAL — shared chrome (header/title/body/footer)
 ════════════════════════════════════════════════════════════════ */
@@ -920,58 +895,152 @@ body {
   margin-top: 0 !important;
 }
 
-
-
 /* ════════════════════════════════════════════════════════════════
-   AntD FORM — shared label / input / textarea / switch styling
+   ANTD FORM — GLOBAL THEME
+   Applies automatically to EVERY <Form> in the app.
+   No className needed — AntD renders class="ant-form" by default.
 ════════════════════════════════════════════════════════════════ */
-.ant-form-item {
+.ant-form .ant-form-item {
   margin-bottom: 14px !important;
+  min-width: 0;
+  /* lets grid columns shrink instead of growing to fit content */
 }
 
-.ant-form-item-label > label {
+.ant-form .ant-form-item-label>label {
   font-size: 11px !important;
   font-weight: 600 !important;
-  color: var(--text-secondary) !important;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  height: auto !important;
-}
-
-.ant-form-item .ant-input,
-.ant-form-item .ant-input-affix-wrapper,
-.ant-form-item .ant-select-selector,
-.ant-form-item .ant-input-number,
-.ant-form-item .ant-picker {
-  border-radius: 8px !important;
-  border: 1px solid var(--border) !important;
-  background: var(--bg-input) !important;
-  font-size: 13px !important;
   color: var(--text-primary) !important;
-  height: 36px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  height: auto !important;
+  font-family: 'Poppins', sans-serif;
 }
 
-.ant-input-affix-wrapper .ant-input {
-    height: auto !important;
-    border: none !important;
+.ant-form .ant-form-item-explain-error {
+  font-size: 10px !important;
+  margin-top: 2px !important;
+  color: var(--red) !important;
 }
 
-.ant-form-item textarea.ant-input {
+/* ── Inputs / number / date picker ── */
+.ant-form .ant-input,
+.ant-form .ant-input-affix-wrapper,
+.ant-form .ant-input-number,
+.ant-form .ant-picker {
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-strong) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 13px !important;
+  height: 38px;
+}
+
+.ant-form .ant-input-affix-wrapper .ant-input {
+  height: auto !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.ant-form textarea.ant-input {
   height: auto !important;
   padding: 8px 12px !important;
 }
 
-.ant-form-item .ant-input:hover,
-.ant-form-item .ant-input:focus,
-.ant-form-item .ant-input-affix-wrapper:hover,
-.ant-form-item .ant-input-affix-wrapper-focused {
+.ant-form .ant-input::placeholder {
+  color: var(--text-muted) !important;
+}
+
+.ant-form .ant-input:hover,
+.ant-form .ant-input:focus,
+.ant-form .ant-input-affix-wrapper:hover,
+.ant-form .ant-input-affix-wrapper-focused,
+.ant-form .ant-input-affix-wrapper:focus {
   border-color: var(--accent) !important;
   box-shadow: 0 0 0 2px var(--accent-light) !important;
 }
 
-.ant-form-item-explain-error {
-  font-size: 10px !important;
-  margin-top: 2px !important;
+.ant-form .ant-input[disabled] {
+  background: var(--bg-card) !important;
+  color: var(--text-muted) !important;
+  border-color: var(--border) !important;
+}
+
+.ant-form .ant-select-selection-item {
+  color: var(--text-primary) !important;
+  line-height: 36px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.ant-form .ant-select-arrow {
+  color: var(--text-muted) !important;
+}
+
+
+/* ── Switch ── */
+.ant-form .ant-switch.ant-switch-checked {
+  background: var(--accent) !important;
+}
+
+/* ── Upload list text ── */
+.ant-form .ant-upload-list-item {
+  color: var(--text-primary) !important;
+}
+
+/* ── Divider inside forms ── */
+.ant-form .ant-divider {
+  border-color: var(--border) !important;
+}
+
+/* ── Default buttons inside forms (e.g. Upload's <Button>) ── */
+.ant-form .ant-btn-default {
+  background: var(--bg-input) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-form .ant-btn-default:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ANTD TABS — GLOBAL THEME
+   Applies automatically to every <Tabs>. No className needed.
+════════════════════════════════════════════════════════════════ */
+.ant-tabs .ant-tabs-tab {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+  font-family: 'Poppins', sans-serif !important;
+  padding: 10px 18px !important;
+}
+
+.ant-tabs .ant-tabs-tab:hover {
+  color: var(--text-primary) !important;
+}
+
+.ant-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+}
+
+.ant-tabs .ant-tabs-ink-bar {
+  background: var(--accent) !important;
+}
+
+.ant-tabs .ant-tabs-nav {
+  border-bottom: 1px solid var(--border) !important;
+  margin: 0 !important;
+  background: var(--bg-header) !important;
+  padding: 0 22px !important;
+}
+
+.ant-tabs .ant-tabs-content-holder {
+  background: var(--bg-page) !important;
 }
 
 /* Field row layout hook — per-form gap can still be overridden inline */
@@ -983,9 +1052,4 @@ body {
 .db-form-row .ant-form-item {
   flex: 1;
   min-width: 0;
-}
-
-/* Switch */
-.ant-switch.ant-switch-checked {
-  background: var(--accent) !important;
 }

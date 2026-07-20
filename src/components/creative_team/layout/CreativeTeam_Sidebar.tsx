@@ -1,8 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LogOut, Settings, LayoutDashboard, 
-  Receipt,
-  Bell,
+  Bell, Image, Video, FileText, ClipboardList, CheckCircle2, AlertTriangle,
   type LucideIcon, 
 } from 'lucide-react';
 import type { RefObject } from "react";
@@ -31,27 +30,28 @@ const NAV: NavGroup[] = [
       { label: "Dashboard", icon: LayoutDashboard, to: "/creative_team/overview" },
     ],
   },
+ 
   {
-    section: "EMAIL",
+    section: "Campaigns",
     items: [
-      { label: "Leads", icon: Receipt, to: "/creative_team/leads" },
+      { label: "Campaigns", icon: ClipboardList, to: "/creative_team/campaigns" },
     ],
   },
-//    {
-//     section: "CATEGORIES",
-//     items: [
-//       { label: "Departments", icon: Building2, to: "/management/categories/departments" },
-//       { label: "Team & Access", icon: Users, to: "/management/categories/teamaccess" },
-//       { label: "Invoice Bank Details", icon: Receipt, to: "/management/categories/invoice_bank_details" },
-//       { label: "Invoice Company Address", icon: MapPinned, to: "/management/categories/invoice_company_address" },
-//       { label: "Authorized Person", icon: Users, to: "/management/categories/invoice_authorized_person" },
-//        { label: "Ad Formats", icon: Megaphone, to: "/management/categories/ads_formats" },
-//       { label: "Metrics", icon: BarChart3, to: "/management/categories/metrics" },
-//       { label: "Mode of Payment", icon: Wallet, to: "/management/categories/mode_of_payment" },
-//       { label: "Payment Terms", icon: CalendarClock, to: "/management/categories/payment_terms" },
-//       { label: "Ethnicity", icon: Globe2, to: "/management/categories/ethnicity" },
-//     ],
-//   },
+  {
+    section: "STATUS",
+    items: [
+        { label: "Completed Tasks", icon: CheckCircle2, to: "/creative_team/status/completed" },
+        { label: "Incompleted Tasks", icon: AlertTriangle, to: "/creative_team/status/incompleted" },
+    ],
+},
+{
+    section: "Creatives",
+    items: [
+      { label: "Image", icon: Image, to: "/creative_team/image_creative" },
+      { label: "Video", icon: Video, to: "/creative_team/video_creative" },
+      { label: "Third Party", icon: FileText, to: "/creative_team/third_party_creative" },
+    ],
+  },
 ];
 
 // ── Notification type (mirrors the one in Layout) ─────────────────────────────

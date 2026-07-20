@@ -13,6 +13,8 @@ import type {
 import { getExampleNumber, isSupportedCountry } from "libphonenumber-js";
 import examples from "libphonenumber-js/mobile/examples";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { FileText, CreditCard, ContactRound, CheckCircle2, MapPinned } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const { Text } = Typography;
 
@@ -47,6 +49,7 @@ const validateEmailList = (_: any, value: string) => {
   return Promise.resolve();
 };
 
+// Converts an array of strings into Ant Design Select options.
 const toOpts = (arr: string[]) => arr.map((s) => ({ value: s, label: s }));
 
 function makeContact(): ContactRow {
@@ -70,10 +73,10 @@ function makeAddress(): AddressRow {
 }
 
 const TABS = [
-  { id: "basic", label: "Basic Information", emoji: "🪪" },
-  { id: "billing", label: "Billing & Commercials", emoji: "💳" },
-  { id: "contacts", label: "Contacts & Addresses", emoji: "👤" },
-  { id: "review", label: "Review & Summary", emoji: "✅" },
+  { id: "basic", label: "Basic Information", icon: FileText },
+  { id: "billing", label: "Billing & Commercials", icon: CreditCard },
+  { id: "contacts", label: "Contacts & Addresses", icon: ContactRound },
+  { id: "review", label: "Review & Summary", icon: CheckCircle2 },
 ];
 
 const inputStyle: React.CSSProperties = {
@@ -83,7 +86,6 @@ const inputStyle: React.CSSProperties = {
   color: "var(--text-primary)",
   height: 38,
   fontSize: 13,
-  fontFamily: "'Poppins', sans-serif",
 };
 
 // ─── PhoneInput ──────────────────────────────────────────────────────────────
@@ -255,7 +257,6 @@ const AddNewSelect = React.memo(function AddNewSelect({
       style={{ width: "100%" }}
       value={value || undefined}
       onChange={(v) => onChange(v ?? "")}
-      popupClassName="ob-themed-dropdown"
       dropdownRender={(menu) => (
         <>
           {menu}
@@ -281,14 +282,15 @@ const AddNewSelect = React.memo(function AddNewSelect({
 const FormCard = React.memo(function FormCard({
   icon, title, subtitle, action, badge, children,
 }: {
-  icon: string; title: string; subtitle?: string;
+  icon: LucideIcon; title: string; subtitle?: string;
   action?: React.ReactNode; badge?: string; children: React.ReactNode;
 }) {
+  const Icon = icon;
   return (
     <div className="db-card" style={{ padding: "20px 22px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
+          <span style={{ fontSize: 20, lineHeight: 1 }}><Icon size={20} /></span>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span className="db-card-title" style={{ textTransform: "none", fontSize: 13 }}>{title}</span>
@@ -379,7 +381,7 @@ const BillingForm = React.memo(function BillingForm({
   }, [sf, form, paymentTerms]);
 
   return (
-    <Form form={form} layout="vertical" className="ob-form">
+    <Form form={form} layout="vertical">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0 16px" }}>
 
         <Form.Item label="Payment Type" name="payment_type"
@@ -387,8 +389,7 @@ const BillingForm = React.memo(function BillingForm({
           <Select placeholder="Select" allowClear style={{ width: "100%" }}
             value={company.payment_type || undefined}
             onChange={handlePaymentTypeChange}
-            options={toOpts(DEFAULT_CHOICES.payment_types)}
-            popupClassName="ob-themed-dropdown" />
+            options={toOpts(DEFAULT_CHOICES.payment_types)}/>
         </Form.Item>
 
         {/* ── Payment Terms — now pulled from the PaymentTerms table (categories app) ── */}
@@ -402,8 +403,7 @@ const BillingForm = React.memo(function BillingForm({
             value={company.payment_terms || undefined}
             onChange={handlePaymentTermsChange}
             disabled={!isPostpaid}            // still locked for Prepaid, but now shows "prepay" as the selected value
-            options={paymentTerms.map((t) => ({ value: String(t.id), label: `${t.title} (${t.days} days)` }))}
-            popupClassName="ob-themed-dropdown" />
+            options={paymentTerms.map((t) => ({ value: String(t.id), label: `${t.title} (${t.days} days)` }))}/>
         </Form.Item>
 
         <Form.Item label="Credit Period (Days)" name="credit_period_days"
@@ -418,17 +418,14 @@ const BillingForm = React.memo(function BillingForm({
             options={taxTypes} setOptions={setTaxTypes} placeholder="Select tax type" />
         </Form.Item>
 
-        <Form.Item label="TDS Applicable" name="tds_applicable"
-          rules={[{ required: true, message: "TDS applicable is required" }]}>
+        <Form.Item label="TDS Applicable" name="tds_applicable">
           <Select placeholder="Select" allowClear style={{ width: "100%" }}
             value={company.tds_applicable || undefined}
             onChange={(v) => sf("tds_applicable", v ?? "")}
-            options={toOpts(DEFAULT_CHOICES.tds_options)}
-            popupClassName="ob-themed-dropdown" />
+            options={toOpts(DEFAULT_CHOICES.tds_options)} />
         </Form.Item>
 
-        <Form.Item label="TDS Section" name="tds_section"
-          rules={[{ required: true, message: "TDS section is required" }]}>
+        <Form.Item label="TDS Section" name="tds_section">
           <Input placeholder="e.g. 194J" value={company.tds_section}
             onChange={(e) => sf("tds_section", e.target.value)} style={inputStyle} />
         </Form.Item>
@@ -436,7 +433,6 @@ const BillingForm = React.memo(function BillingForm({
         <Form.Item label="Billing Currency">
           <Select style={{ width: "100%" }} value={company.billing_currency}
             onChange={(v) => sf("billing_currency", v)}
-            popupClassName="ob-themed-dropdown"
             options={availableCurrencies.map((c: any) => ({
               value: c,
               label: c === "INR" ? "INR (₹)" : c === "USD" ? "USD ($)" :
@@ -449,20 +445,17 @@ const BillingForm = React.memo(function BillingForm({
           )}
         </Form.Item>
 
-        <Form.Item label="Advance / Security Deposit" name="advance_amount"
-          rules={[{ required: true, message: "Advance amount is required" }]}>
+        <Form.Item label="Advance / Security Deposit" name="advance_amount">
           <Input type="number" placeholder="Enter amount" value={company.advance_amount}
             onChange={(e) => sf("advance_amount", e.target.value)} style={inputStyle} />
         </Form.Item>
 
-        <Form.Item label="Credit Limit" name="credit_limit"
-          rules={[{ required: true, message: "Credit limit is required" }]}>
+        <Form.Item label="Credit Limit" name="credit_limit">
           <Input type="number" placeholder="Enter credit limit" value={company.credit_limit}
             onChange={(e) => sf("credit_limit", e.target.value)} style={inputStyle} />
         </Form.Item>
 
-        <Form.Item label="Outstanding Limit Allowed" name="outstanding_limit"
-          rules={[{ required: true, message: "Outstanding limit is required" }]}>
+        <Form.Item label="Outstanding Limit Allowed" name="outstanding_limit">
           <Input type="number" placeholder="Enter outstanding limit" value={company.outstanding_limit}
             onChange={(e) => sf("outstanding_limit", e.target.value)} style={inputStyle} />
         </Form.Item>
@@ -476,7 +469,6 @@ const BillingForm = React.memo(function BillingForm({
             value={company.default_invoice_address || undefined}
             onChange={(v) => sf("default_invoice_address", v ?? "")}
             options={companyAddresses.map((a) => ({ value: String(a.id), label: a.label }))}
-            popupClassName="ob-themed-dropdown"
           />
         </Form.Item>
 
@@ -489,7 +481,6 @@ const BillingForm = React.memo(function BillingForm({
             value={company.default_invoice_bank || undefined}
             onChange={(v) => sf("default_invoice_bank", v ?? "")}
             options={bankDetails.map((b) => ({ value: String(b.id), label: b.label }))}
-            popupClassName="ob-themed-dropdown"
           />
         </Form.Item>
 
@@ -502,7 +493,6 @@ const BillingForm = React.memo(function BillingForm({
             value={company.default_authorized_person || undefined}
             onChange={(v) => sf("default_authorized_person", v ?? "")}
             options={authorizedPersons.map((p) => ({ value: String(p.id), label: p.name }))}
-            popupClassName="ob-themed-dropdown"
           />
         </Form.Item>
 
@@ -511,8 +501,7 @@ const BillingForm = React.memo(function BillingForm({
           <Select placeholder="Select" allowClear style={{ width: "100%" }}
             value={company.invoice_type === "single" ? "Single Invoice" : company.invoice_type === "multiple" ? "Multiple Invoice" : undefined}
             onChange={(v) => sf("invoice_type", v === "Single Invoice" ? "single" : "multiple")}
-            options={toOpts(DEFAULT_CHOICES.invoice_types)}
-            popupClassName="ob-themed-dropdown" />
+            options={toOpts(DEFAULT_CHOICES.invoice_types)} />
         </Form.Item>
 
       </div>
@@ -537,8 +526,8 @@ const ContactsSection = React.memo(function ContactsSection({
   countries, loadingCountries, countryOpts, setCountryOpts,
 }: ContactsSectionProps) {
   return (
-    <FormCard icon="👤" title="Company Contacts"
-      subtitle="Add one or more contacts (first contact submitted to server)"
+    <FormCard icon={ContactRound} title="Company Contacts"
+      subtitle="Add one or more contacts"
       action={
         <button className="db-card-action" onClick={addContact}
           style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -561,7 +550,7 @@ const ContactsSection = React.memo(function ContactsSection({
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-              Contact #{idx + 1}
+              Contact {idx + 1}
               {idx > 0 && <span style={{ marginLeft: 8, color: "var(--amber)", fontWeight: 500, textTransform: "none" }}>(client-side only)</span>}
             </span>
             <button onClick={() => removeContact(c.id)} style={{
@@ -571,7 +560,7 @@ const ContactsSection = React.memo(function ContactsSection({
               <DeleteOutlined />
             </button>
           </div>
-          <Form layout="vertical" className="ob-form">
+          <Form layout="vertical">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0 16px" }}>
               <Form.Item label="Name" required>
                 <Input placeholder="Full name" value={c.contact_name} style={inputStyle}
@@ -656,8 +645,8 @@ const AddressesSection = React.memo(function AddressesSection({
   loadingCountries, countryOpts, setCountryOpts,
 }: AddressesSectionProps) {
   return (
-    <FormCard icon="📍" title="Company Addresses"
-      subtitle="Billing, shipping or registered locations (first address submitted to server)"
+    <FormCard icon={MapPinned} title="Company Addresses"
+      subtitle="Add one or more address"
       action={
         <button className="db-card-action" onClick={addAddress}
           style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -680,7 +669,7 @@ const AddressesSection = React.memo(function AddressesSection({
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-              Address #{idx + 1} · Registered
+              Address {idx + 1}
               {idx > 0 && <span style={{ marginLeft: 8, color: "var(--amber)", fontWeight: 500, textTransform: "none" }}>(client-side only)</span>}
             </span>
             <button onClick={() => removeAddress(a.id)} style={{
@@ -690,7 +679,7 @@ const AddressesSection = React.memo(function AddressesSection({
               <DeleteOutlined />
             </button>
           </div>
-          <Form layout="vertical" className="ob-form">
+          <Form layout="vertical">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0 16px" }}>
               <Form.Item label="Address Line 1" style={{ gridColumn: "span 2" }} required>
                 <Input placeholder="350 Mission Street" value={a.company_address_line1} style={inputStyle}
@@ -1152,10 +1141,23 @@ export default function Onboarding() {
     } finally { setSubmitting(false); }
   }, [form, buildPayload, checkDomainMismatch]);
 
-  const tabItems = useMemo(() => TABS.map((t) => ({
-    key: t.id,
-    label: <span style={{ display: "flex", alignItems: "center", gap: 6, userSelect: "none" }}>{t.emoji} {t.label}</span>,
-  })), []);
+  const tabItems = useMemo(
+    () =>
+      TABS.map((t) => {
+        const Icon = t.icon;
+
+        return {
+          key: t.id,
+          label: (
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon size={16} />
+              {t.label}
+            </span>
+          ),
+        };
+      }),
+    []
+  );
 
   const billingFormProps = useMemo<BillingFormProps>(() => ({
     company, sf, form, taxTypes, setTaxTypes,
@@ -1181,110 +1183,6 @@ export default function Onboarding() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="db-root" style={{ flexDirection: "column" }}>
-
-      <style>{`
-      .ob-form .ant-form-item {
-  min-width: 0;   /* lets grid columns shrink instead of growing to fit content */
-}
-
-.ob-form .ant-select-selection-item {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
-}
-        .ob-form .ant-form-item-label > label {
-          font-size: 11px !important;
-          font-weight: 600 !important;
-          color: var(--text-primary) !important;
-          text-transform: uppercase;
-          letter-spacing: 0.07em;
-          font-family: 'Poppins', sans-serif;
-        }
-        .ob-form .ant-form-item-explain-error {
-          font-size: 10px;
-          color: var(--red) !important;
-        }
-        .ob-form .ant-input,
-        .ob-form .ant-input-number,
-        .ob-form .ant-picker {
-          background: var(--bg-input) !important;
-          border-color: var(--border-strong) !important;
-          color: var(--text-primary) !important;
-          border-radius: var(--radius-sm) !important;
-          font-family: 'Poppins', sans-serif !important;
-          font-size: 13px !important;
-        }
-        .ob-form .ant-input::placeholder { color: var(--text-muted) !important; }
-        .ob-form .ant-input:focus,
-        .ob-form .ant-input:hover {
-          border-color: var(--accent) !important;
-          box-shadow: 0 0 0 2px rgba(152,62,245,0.12) !important;
-        }
-        .ob-form .ant-input[disabled] {
-          background: var(--bg-card) !important;
-          color: var(--text-muted) !important;
-          border-color: var(--border) !important;
-        }
-        .ob-form .ant-select-selector {
-          background: var(--bg-input) !important;
-          border-color: var(--border-strong) !important;
-          color: var(--text-primary) !important;
-          border-radius: var(--radius-sm) !important;
-          height: 38px !important;
-          font-family: 'Poppins', sans-serif !important;
-          font-size: 13px !important;
-        }
-        .ob-form .ant-select-selection-item { color: var(--text-primary) !important; line-height: 36px !important; }
-        .ob-form .ant-select-selection-placeholder { color: var(--text-muted) !important; line-height: 36px !important; }
-        .ob-form .ant-select-arrow { color: var(--text-muted) !important; }
-        .ob-form .ant-select:hover .ant-select-selector { border-color: var(--accent) !important; }
-        .ob-form .ant-select-focused .ant-select-selector { border-color: var(--accent) !important; box-shadow: 0 0 0 2px rgba(152,62,245,0.12) !important; }
-        .ob-form .ant-select-disabled .ant-select-selector { background: var(--bg-card) !important; color: var(--text-muted) !important; }
-        .ob-form .ant-switch-checked { background: var(--accent) !important; }
-        .ob-form .ant-upload-list-item { color: var(--text-primary) !important; }
-        .ob-themed-dropdown.ant-select-dropdown {
-          background: var(--bg-card) !important;
-          border: 1px solid var(--border-strong) !important;
-          border-radius: var(--radius-card) !important;
-          box-shadow: var(--shadow) !important;
-        }
-        .ob-themed-dropdown .ant-select-item {
-          color: var(--text-primary) !important;
-          font-size: 13px !important;
-          font-family: 'Poppins', sans-serif !important;
-        }
-        .ob-themed-dropdown .ant-select-item-option-active { background: var(--accent-light) !important; }
-        .ob-themed-dropdown .ant-select-item-option-selected { background: var(--accent) !important; color: #fff !important; }
-        .ob-themed-dropdown .ant-select-item-empty { color: var(--text-muted) !important; }
-        .ob-tabs .ant-tabs-tab {
-          font-size: 12px !important;
-          font-weight: 500 !important;
-          color: var(--text-secondary) !important;
-          font-family: 'Poppins', sans-serif !important;
-          padding: 10px 18px !important;
-        }
-        .ob-tabs .ant-tabs-tab:hover { color: var(--text-primary) !important; }
-        .ob-tabs .ant-tabs-tab-active .ant-tabs-tab-btn { color: var(--accent) !important; font-weight: 600 !important; }
-        .ob-tabs .ant-tabs-ink-bar { background: var(--accent) !important; }
-        .ob-tabs .ant-tabs-nav { border-bottom: 1px solid var(--border) !important; margin: 0 !important; background: var(--bg-header) !important; padding: 0 22px !important; }
-        .ob-tabs .ant-tabs-content-holder { background: var(--bg-page) !important; }
-        .ob-form textarea.ant-input {
-          height: auto !important;
-          padding: 8px 12px !important;
-        }
-        .ob-form .ant-divider { border-color: var(--border) !important; }
-        .ob-form .ant-btn-default {
-          background: var(--bg-input) !important;
-          border-color: var(--border-strong) !important;
-          color: var(--text-primary) !important;
-        }
-        .ob-form .ant-btn-default:hover {
-          border-color: var(--accent) !important;
-          color: var(--accent) !important;
-        }
-      `}</style>
-
       <header className="db-header" style={{ position: "sticky", top: 0, zIndex: 100, paddingLeft: 24, paddingRight: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
@@ -1348,14 +1246,14 @@ export default function Onboarding() {
 
         <div className="db-card" style={{ overflow: "hidden", padding: 0 }}>
 
-          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} className="ob-tabs" />
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
           <div style={{ padding: "22px 22px", background: "var(--bg-page)", display: "flex", flexDirection: "column", gap: 16 }}>
 
             {activeTab === "basic" && (
               <>
-                <FormCard icon="🪪" title="Basic Information">
-                  <Form form={form} layout="vertical" className="ob-form">
+                <FormCard icon={FileText} title="Basic Information">
+                  <Form form={form} layout="vertical">
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0 16px" }}>
 
                       <Form.Item label="Client ID (Auto)">
@@ -1516,7 +1414,7 @@ export default function Onboarding() {
                   </Form>
                 </FormCard>
 
-                <FormCard icon="💳" title="Billing & Commercials">
+                <FormCard icon={CreditCard} title="Billing & Commercials">
                   <BillingForm {...billingFormProps} />
                 </FormCard>
 
@@ -1562,7 +1460,7 @@ export default function Onboarding() {
             )}
 
             {activeTab === "billing" && (
-              <FormCard icon="💳" title="Billing & Commercials">
+              <FormCard icon={CreditCard} title="Billing & Commercials">
                 <BillingForm {...billingFormProps} />
               </FormCard>
             )}
@@ -1576,7 +1474,7 @@ export default function Onboarding() {
 
             {activeTab === "review" && (
               <>
-                <FormCard icon="✅" title="Review & Summary" subtitle="Confirm all details before final submission">
+                <FormCard icon={CheckCircle2} title="Review & Summary" subtitle="Confirm all details before final submission">
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
                     <div>
                       <p style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12 }}>
@@ -1676,7 +1574,6 @@ export default function Onboarding() {
         </div>
       </div>
 
-      <style>{`@keyframes ob-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
