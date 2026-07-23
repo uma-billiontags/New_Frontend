@@ -19,6 +19,8 @@ import Metrics from "./components/management/categories/Metrics";
 import Mode_Of_Payment from "./components/management/categories/Mode_Of_Payment";
 import Payment_Terms from "./components/management/categories/Payment_Terms";
 import Ethnicity from "./components/management/categories/Ethnicity";
+import Completed_Users from "./components/management/status/Completed_Users";
+import Overdue_Users from "./components/management/status/Overdue_Users";
 
 // ── Account Manager ───────────────────────────────────────────────────────────────
 import AccountManager_Layout from "./components/account_manager/layout/AccountManager_Layout";
@@ -28,22 +30,24 @@ import Campaign_Create_Leads from "./components/account_manager/Campaign_Create_
 import Image_Creatives_Campaign from "./components/account_manager/Image_Creatives_Campaign";
 import Video_Creatives_Campaign from "./components/account_manager/Video_Creatives_Campaign";
 import All_Campaigns from "./components/account_manager/All_Campaigns";
+import AM_Completed_Users from "./components/account_manager/status/Completed_Users";
+import AM_Overdue_Users from "./components/account_manager/status/Overdue_Users";
 
 // ── Creative Team ───────────────────────────────────────────────────────────────
 import CreativeTeam_Layout from "./components/creative_team/layout/CreativeTeam_Layout";
 import CreativeTeam_Overview from "./components/creative_team/layout/CreativeTeam_Overview";
 import Creative_Campaigns from "./components/creative_team/Creative_Campaigns";
+import Image_Creatives from "./components/creative_team/creatives/Image_Creatives";
+import Video_Creatives from "./components/creative_team/creatives/Video_Creatives";
+import Creative_My_Completed_Tasks from "./components/creative_team/status/Creative_My_Completed_Tasks";
+import Creative_My_Incompleted_Tasks from "./components/creative_team/status/Creative_My_Incompleted_Tasks";
 
 // ── Campaign Team ───────────────────────────────────────────────────────────────
 import CampaignTeam_Layout from "./components/campaign_team/layout/CampaignTeam_Layout";
 import CampaignTeam_Overview from "./components/campaign_team/layout/CampaignTeam_Overview";
-import Image_Creatives from "./components/creative_team/creatives/Image_Creatives";
-import Video_Creatives from "./components/creative_team/creatives/Video_Creatives";
-import Completed_Users from "./components/management/status/Completed_Users";
-import Overdue_Users from "./components/management/status/Overdue_Users";
-import My_Completed_Tasks from "./components/creative_team/status/My_Completed_Tasks";
-import My_Incompleted_Tasks from "./components/creative_team/status/My_Incompleted_Tasks";
 import Campaign_Campaigns from "./components/campaign_team/Campaign_Campaigns";
+import Campaign_My_Completed_Tasks from "./components/campaign_team/status/Campaign_My_Completed_Tasks";
+import Campaign_My_Incompleted_Tasks from "./components/campaign_team/status/Campaign_My_Incompleted_Tasks";
 
 function App() {
 
@@ -78,34 +82,34 @@ function App() {
         {/* Account Manager */}
         <Route path="/account_manager" element={<AccountManager_Layout />}>
           <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<AccountManager_Overview/>} />
+          <Route path="overview" element={<AccountManager_Overview />} />
           <Route path="leads" element={<Leads_Account_Manager />} />
           <Route path="campaign_create_leads" element={<Campaign_Create_Leads />} />
-          <Route path="creative_image_upload_campaign" element={<Image_Creatives_Campaign/>} />
-          <Route path="creative_video_upload_campaign" element={<Video_Creatives_Campaign/>} />
-          <Route path="campaigns" element={<All_Campaigns/>} />
-          <Route path="status/completed_users" element={<Completed_Users />} />
-          <Route path="status/overdue_users" element={<Overdue_Users />} />
+          <Route path="creative_image_upload_campaign" element={<Image_Creatives_Campaign />} />
+          <Route path="creative_video_upload_campaign" element={<Video_Creatives_Campaign />} />
+          <Route path="campaigns" element={<All_Campaigns />} />
+          <Route path="status/completed_users" element={<AM_Completed_Users />} />
+          <Route path="status/overdue_users" element={<AM_Overdue_Users />} />
         </Route>
 
         {/* Creative Team */}
         <Route path="/creative_team" element={<CreativeTeam_Layout />}>
           <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<CreativeTeam_Overview/>} />
+          <Route path="overview" element={<CreativeTeam_Overview />} />
           <Route path="campaigns" element={<Creative_Campaigns />} />
           <Route path="image_creative" element={<Image_Creatives />} />
-          <Route path="video_creative" element={<Video_Creatives/>} />
-          <Route path="status/completed" element={<My_Completed_Tasks/>} />
-          <Route path="status/incompleted" element={<My_Incompleted_Tasks/>} />
+          <Route path="video_creative" element={<Video_Creatives />} />
+          <Route path="status/completed" element={<Creative_My_Completed_Tasks />} />
+          <Route path="status/incompleted" element={<Creative_My_Incompleted_Tasks />} />
         </Route>
 
         {/* Campaign Team */}
         <Route path="/campaign_team" element={<CampaignTeam_Layout />}>
           <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<CampaignTeam_Overview/>} />
+          <Route path="overview" element={<CampaignTeam_Overview />} />
           <Route path="campaigns" element={<Campaign_Campaigns />} />
-          <Route path="status/completed" element={<My_Completed_Tasks/>} />
-          <Route path="status/incompleted" element={<My_Incompleted_Tasks/>} />
+          <Route path="status/completed" element={<Campaign_My_Completed_Tasks />} />
+          <Route path="status/incompleted" element={<Campaign_My_Incompleted_Tasks />} />
         </Route>
 
       </Routes>

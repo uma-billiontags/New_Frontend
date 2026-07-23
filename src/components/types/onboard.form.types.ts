@@ -112,3 +112,47 @@ export interface AddNewSelectProps {
   placeholder?: string;
 }
 
+import type React from "react";
+import type { FormInstance } from "antd";
+
+// ... your existing interfaces (ContactRow, AddressRow, CompanyForm, Country, etc.) stay as-is ...
+
+// ─── Section prop types (moved from Onboarding.tsx) ──────────────────────────
+
+export interface BillingFormProps {
+  company: CompanyForm;
+  sf: (k: keyof CompanyForm, v: string | boolean) => void;
+  form: FormInstance;
+  taxTypes: string[];
+  setTaxTypes: React.Dispatch<React.SetStateAction<string[]>>;
+  availableCurrencies: string[];
+  authorizedPersons: { id: number; name: string }[];
+  loadingAuthorizedPersons: boolean;
+  paymentTerms: { id: number; title: string; days: number }[];
+  loadingPaymentTerms: boolean;
+  companyAddresses: { id: number; label: string }[];
+  loadingCompanyAddresses: boolean;
+  bankDetails: { id: number; label: string }[];
+  loadingBankDetails: boolean;
+}
+
+export interface ContactsSectionProps {
+  contacts: ContactRow[];
+  addContact: () => void;
+  removeContact: (id: number) => void;
+  updateContact: (id: number, k: keyof ContactRow, v: string | File | boolean | null) => void;
+  countries: Country[];
+  loadingCountries: boolean;
+  countryOpts: string[];
+  setCountryOpts: React.Dispatch<React.SetStateAction<string[]>>;
+}
+
+export interface AddressesSectionProps {
+  addresses: AddressRow[];
+  addAddress: () => void;
+  removeAddress: (id: number) => void;
+  updateAddress: (id: number, k: keyof AddressRow, v: string | boolean) => void;
+  loadingCountries: boolean;
+  countryOpts: string[];
+  setCountryOpts: React.Dispatch<React.SetStateAction<string[]>>;
+}

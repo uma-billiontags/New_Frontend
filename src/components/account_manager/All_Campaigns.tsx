@@ -954,26 +954,6 @@ export default function All_Campaigns() {
                         MANAGE & TRACK ALL CLIENT CAMPAIGNS
                     </p>
                 </div>
-                <div>
-                    <Button
-                        onClick={() => navigate('/campaign_create', { state: { adminMode: true } })}
-                        style={{
-                            borderRadius: 9,
-                            border: "none",
-                            background: "var(--accent)",
-                            color: "#fff",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            padding: "8px 16px",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                        }}
-                    >
-                        <PlusOutlined /> Add New Campaign
-                    </Button>
-                </div>
             </div>
 
             {/* ── Stat Cards — flat style matching Platform Overview ── */}

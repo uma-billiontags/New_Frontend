@@ -435,7 +435,7 @@ export default function Leads_Account_Manager() {
                         </Button>
                     ) : (
                         <Button size="small" type="primary" icon={<RocketOutlined />} onClick={() => handleCreateCampaign(record)}
-                            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, color: "var(--green)", background: "var(--green-bg)", border: "1px solid var(--green)", opacity: 1,}}>
+                            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, color: "var(--amber)", background: "var(--amber-bg)", border: "1px solid var(--amber)", opacity: 1,}}>
                             Create Campaign
                         </Button>
                     )}

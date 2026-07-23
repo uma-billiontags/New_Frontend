@@ -58,7 +58,7 @@ function StatCard({ label, value, changeLabel, changeType }: {
     );
 }
 
-export default function MyStatusTable({ reportType, title, subtitle }: {
+export default function CampaignMyStatusTable({ reportType, title, subtitle }: {
     reportType: 'completed' | 'overdue';
     title: string;
     subtitle: string;
@@ -77,7 +77,7 @@ export default function MyStatusTable({ reportType, title, subtitle }: {
     const userId = localStorage.getItem('user_id');   // ← ADD
     if (!userId) { setRows([]); setLoading(false); return; }
     setLoading(true);
-    fetch(`${BASE_URL}/tasks/get_status_report/?status=${reportType}&user_id=${userId}&task_type=creative_ops`, {   // ← CHANGED
+    fetch(`${BASE_URL}/tasks/get_status_report/?status=${reportType}&user_id=${userId}&task_type=campaign_ops`, {   // ← CHANGED
         headers: { 'ngrok-skip-browser-warning': '1' },
     })
         .then(r => { if (!r.ok) throw new Error(); return r.json(); })
@@ -187,7 +187,7 @@ export default function MyStatusTable({ reportType, title, subtitle }: {
         },
         {
             title: 'Due At', dataIndex: 'due_at', key: 'due_at', width: 160,
-            render: (v: string | null, r: StatusRow) => {
+            render: (v: string | null,) => {
                 const missed = isOverdue && v;
                 return (
                     <span style={{

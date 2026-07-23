@@ -1,6 +1,6 @@
-import MyStatusTable from './MyStatusTable';
+import MyStatusTable from './CampaignMyStatusTable';
 
-export default function My_Completed_Tasks() {
+export default function Campaign_My_Completed_Tasks() {
     return (
         <MyStatusTable 
         reportType="completed" 

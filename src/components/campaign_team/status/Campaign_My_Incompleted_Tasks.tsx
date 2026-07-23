@@ -1,6 +1,6 @@
-import MyStatusTable from './MyStatusTable';
+import MyStatusTable from './CampaignMyStatusTable';
 
-export default function My_Incompleted_Tasks() {
+export default function Campaign_My_Incompleted_Tasks() {
     return (
         <MyStatusTable 
         reportType="overdue" 

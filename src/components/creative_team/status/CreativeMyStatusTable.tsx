@@ -187,7 +187,7 @@ export default function MyStatusTable({ reportType, title, subtitle }: {
         },
         {
             title: 'Due At', dataIndex: 'due_at', key: 'due_at', width: 160,
-            render: (v: string | null, r: StatusRow) => {
+            render: (v: string | null,) => {
                 const missed = isOverdue && v;
                 return (
                     <span style={{
