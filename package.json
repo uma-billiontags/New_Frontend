@@ -13,12 +13,14 @@
     "@ant-design/icons": "^6.3.2",
     "antd": "^6.5.0",
     "currency-symbol-map": "^5.1.0",
+    "firebase": "^12.17.0",
     "libphonenumber-js": "^1.13.8",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
-    "recharts": "^3.9.2"
+    "recharts": "^3.9.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

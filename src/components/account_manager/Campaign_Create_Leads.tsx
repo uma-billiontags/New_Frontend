@@ -46,7 +46,7 @@ export interface GeoLocation {
     city: string;
     address: string;
     zipcode: string;
-    range?: string;   // ← add this
+    range?: string;
 }
 
 export interface CreativeData {
@@ -103,13 +103,14 @@ function loadDraft(): Record<string, any> | null {
 }
 function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
 
-function generateLineItemId(): string {
-    return `TEMP_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+function generateLineItemId(index: number, offset: number, prefix: string): string {
+    const paddedIndex = String(offset + index - 1).padStart(3, "0");
+    return `LI${prefix}${paddedIndex}`;
 }
 
-function emptyLineItem(): LeadLineItem {
+function emptyLineItem(index: number, offset: number, prefix: string): LeadLineItem {
     return {
-        id: generateLineItemId(),
+        id: generateLineItemId(index, offset, prefix),
         lineItemName: "", ethnicity: "", startDate: "", endDate: "",
         adFormat: "", impressions: "", units: "", rate: "",
         ctr: "0.4", viewability: "70", vcr: "70", ctrNotes: "",
@@ -121,7 +122,29 @@ function isLineItemComplete(li: LeadLineItem): boolean {
     return !!(li.lineItemName.trim() && li.startDate && li.endDate && li.adFormat);
 }
 
-// ── Geo Targeting (country → state → city cascade) ───────────────────────────
+// ── FIX: template literals now use proper backticks so this actually compiles,
+// and it's wired up below (previously dead code) so LEAD### IDs stay globally
+// unique against LineItem.line_item_id's unique=True constraint on the backend.
+async function fetchLastLineItemOffset(prefixRaw: string): Promise<number> {
+    try {
+        const prefix = `LI${prefixRaw}`;
+        const res = await fetch(`${BASE_URL}/campaigns/get_campaigns/`, {
+            headers: { Accept: "application/json", "ngrok-skip-browser-warning": "1" },
+        });
+        if (!res.ok) return 1;
+        const data = await res.json();
+        const allIds: string[] = [];
+        (data || []).forEach((c: any) => {
+            (c.line_items || []).forEach((li: any) => {
+                if (li.line_item_id && li.line_item_id.startsWith(prefix)) allIds.push(li.line_item_id);
+            });
+        });
+        if (allIds.length === 0) return 1;
+        const nums = allIds.map((id) => parseInt(id.replace(prefix, ""), 10)).filter((n) => !isNaN(n));
+        return nums.length === 0 ? 1 : Math.max(...nums) + 1;
+    } catch { return 1; }
+}
+
 // ── Geo Targeting (country → state → city cascade, with "+ Add new" support) ──
 function GeoTargeting({ locations, onAdd, onRemove }: {
     locations: GeoLocation[];
@@ -435,7 +458,7 @@ interface LineItemCardProps {
     canRemove: boolean;
     clientCurrencySymbol: string;
     creativesCount: number;
-    ethnicityOptions: { id: number; label: string }[];   // ← add this
+    ethnicityOptions: { id: number; label: string }[];
     onChange: (id: string, field: keyof LeadLineItem, value: any) => void;
     onRemove: (id: string) => void;
     onUploadCreatives: (item: LeadLineItem) => void;
@@ -658,7 +681,6 @@ function LineItemCard({
                         <Select mode="multiple" value={item.age} onChange={(vals: string[]) => onChange(item.id, "age", vals)}
                             optionRender={(option) => (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    {/* ✅ Fix: use itemAge (local var) not undefined 'age' */}
                                     <input type="checkbox" readOnly checked={item.age.includes(option.value as string)}
                                         style={{ accentColor: '#4f46e5', width: 14, height: 14, cursor: 'pointer' }} />
                                     <span>{option.label}</span>
@@ -679,7 +701,6 @@ function LineItemCard({
                             placeholder="Select Gender" maxTagCount="responsive"
                             optionRender={(option) => (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    {/* ✅ Fix: use itemGender (local var) not undefined 'gender' */}
                                     <input type="checkbox" readOnly checked={item.gender.includes(option.value as string)}
                                         style={{ accentColor: '#4f46e5', width: 14, height: 14, cursor: 'pointer' }} />
                                     <span>{option.label}</span>
@@ -736,8 +757,13 @@ export default function Campaign_Create_Leads() {
     const [objective, setObjective] = useState<string>(restoredData?.objective ?? "");
     const [notes, setNotes] = useState<string>(restoredData?.notes ?? "");
 
+    const clientPrefix = "LEAD";
+
+    // ── FIX: start at offset 1 as a safe fallback, but immediately resolve the
+    // real next-available offset from the backend below (unless restoring a draft).
+    const [lineItemOffset, setLineItemOffset] = useState<number>(restoredData?.lineItemOffset ?? 1);
     const [lineItems, setLineItems] = useState<LeadLineItem[]>(
-        restoredData?.lineItems?.length ? restoredData.lineItems : [emptyLineItem()]
+        restoredData?.lineItems?.length ? restoredData.lineItems : [emptyLineItem(1, 1, clientPrefix)]
     );
     const [lineItemCreatives, setLineItemCreatives] = useState<LineItemCreativesMap>(() => {
         if (isReturnFromCreative && locationState?.allLineItemCreatives) {
@@ -766,6 +792,21 @@ export default function Campaign_Create_Leads() {
             })
             .catch(() => console.warn("Failed to load ethnicity"))
             .finally(() => setLoadingEthnicty(false));
+    }, []);
+
+    // ── FIX: on a fresh visit (not restoring a draft), fetch the real last-used
+    // line item offset for this prefix and seed both the offset and the first
+    // line item with it. Without this, every fresh session started at LEAD001,
+    // which collides with LineItem.line_item_id's unique=True on the backend
+    // as soon as more than one campaign has been created historically.
+    useEffect(() => {
+        if (!shouldRestoreDraft) {
+            fetchLastLineItemOffset(clientPrefix).then((offset) => {
+                setLineItemOffset(offset);
+                setLineItems([emptyLineItem(1, offset, clientPrefix)]);
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Load client name + currency, then seed line item IDs with the right prefix ──
@@ -799,12 +840,11 @@ export default function Campaign_Create_Leads() {
         if (!isMounted.current) { isMounted.current = true; return; }
         saveDraft({
             clientCampaignId, purchaseOrderId, campaignName, campaignType,
-            startDate, endDate, buyingType, objective, notes,
+            startDate, endDate, buyingType, objective, notes, lineItemOffset,
             lineItems,
         });
     }, [clientCampaignId, purchaseOrderId, campaignName, campaignType, startDate, endDate,
-        buyingType, objective, notes, lineItems]);
-
+        buyingType, objective, notes, lineItemOffset, lineItems]);
 
     // ── Line item handlers ──
     const handleLineItemChange = useCallback((id: string, field: keyof LeadLineItem, value: any) => {
@@ -812,11 +852,23 @@ export default function Campaign_Create_Leads() {
     }, []);
 
     const handleAddLineItem = () => {
-        setLineItems((prev) => [...prev, emptyLineItem()]);
+        setLineItems((prev) => [...prev, emptyLineItem(prev.length + 1, lineItemOffset, clientPrefix)]);
     };
 
+    // ── FIX: no longer renumbers surviving line items' IDs on removal.
+    // Renumbering broke the link between a line item's ID and its uploaded
+    // creatives in lineItemCreatives (keyed by "<id>_image" / "<id>_video"),
+    // silently losing or misattributing creatives on submit. IDs are now
+    // stable for the life of the form; we also clean up the removed item's
+    // creative entries so they don't linger in state.
     const handleRemoveLineItem = (id: string) => {
         setLineItems((prev) => prev.filter((li) => li.id !== id));
+        setLineItemCreatives((prev) => {
+            const next = { ...prev };
+            delete next[id + "_image"];
+            delete next[id + "_video"];
+            return next;
+        });
     };
 
     // ── Route to the right creative upload page based on ad format ──
@@ -927,10 +979,10 @@ export default function Campaign_Create_Leads() {
                     unit_cost: unitCostBudget !== "" ? `${clientCurrencySymbol}${unitCostBudget}` : "",
                     age: li.age.join(", "),
                     gender: li.gender.join(", "),
-                    ctr: li.ctr,                    // ← add
-                    viewability: li.viewability,    // ← add
-                    vcr: li.vcr,                    // ← add
-                    ctr_notes: li.ctrNotes,         // ← add (optional, but you're collecting it — may as well keep it)
+                    ctr: li.ctr,
+                    viewability: li.viewability,
+                    vcr: li.vcr,
+                    ctr_notes: li.ctrNotes,
                     geo_targeting: JSON.stringify(li.geoLocations.map((loc) => ({
                         country: loc.country || "", state: loc.state || "", address: loc.address || "",
                         city: loc.city || "", zipcode: loc.zipcode || "", range: loc.range || "",

@@ -1,4 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { message } from "antd";
+import { listenForForegroundMessages } from "./firebase";
 
 // ── Pages ───────────────────────────────────────────────────────────────
 import Home from "./components/pages/Home";
@@ -52,8 +55,18 @@ import Insertion_Order from "./components/account_manager/Insertion_Order";
 import Daily_Reports from "./components/account_manager/Daily_Reports";
 import Invoices from "./components/account_manager/Invoices";
 import Invoice_Download from "./components/account_manager/Invoice_Download";
+import Campaign_Reports from "./components/account_manager/Campaign_Reports";
+import Finance_Layout from "./components/creative_team/layout/Finance_Layout";
+import Finance_Overview from "./components/creative_team/layout/Finance_Overview";
 
 function App() {
+  useEffect(() => {
+    listenForForegroundMessages((title, body) => {
+      // ✅ FIX: template literal needs backticks, not nothing —
+      // this was a syntax error (invalid JS) as originally written.
+      message.info(`${title}: ${body}`);
+    });
+  }, []);
 
   return (
     <BrowserRouter>
@@ -98,6 +111,7 @@ function App() {
           <Route path="daily_reports" element={<Daily_Reports />} />
           <Route path="invoice" element={<Invoices />} />
           <Route path="invoice_download" element={<Invoice_Download />} />
+          <Route path="campaign_reports" element={<Campaign_Reports />} />
         </Route>
 
         {/* Creative Team */}
@@ -120,11 +134,16 @@ function App() {
           <Route path="status/incompleted" element={<Campaign_My_Incompleted_Tasks />} />
         </Route>
 
+         {/* Finance Team */}
+        <Route path="/finance" element={<Finance_Layout />}>
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview" element={<Finance_Overview />} />
+         
+        </Route>
+
       </Routes>
     </BrowserRouter>
-
-
-  )
+  );
 }
 
-export default App
+export default App;

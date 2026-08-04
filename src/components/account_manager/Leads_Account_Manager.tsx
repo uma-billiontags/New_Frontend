@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Table, Button, Input, Modal, Select } from "antd";
 import {
     SearchOutlined, ReloadOutlined, EyeOutlined,
-    MailOutlined, LinkOutlined, CloseOutlined, PaperClipOutlined,
+    MailOutlined, LinkOutlined, PaperClipOutlined,
     RocketOutlined, CheckCircleOutlined, EditOutlined
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 
+import { requestFcmToken } from "../../firebase";
+
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // department dashboard-key -> route. Add more entries here as new departments are onboarded.
@@ -9,6 +11,7 @@ const dashboardRedirectMap: Record<string, string> = {
   account_manager: "/account_manager",
   creative_ops: "/creative_team",
   campaign_ops: "/campaign_team",
+  finance: "/finance",
 };
 
 export default function Login() {
@@ -50,6 +53,22 @@ export default function Login() {
       localStorage.setItem("user_department_id", String(data.user.department_id ?? ""));
       localStorage.setItem("user_role", data.user.role || "");
       localStorage.setItem("user_role_id", String(data.user.role_id ?? ""));
+
+      // ── Register for push notifications (fire-and-forget, don't block login) ──
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/firebase-messaging-sw.js")
+          .then(async () => {
+            const token = await requestFcmToken();
+            if (token) {
+              fetch(`${BASE_URL}/notifications/save_fcm_token/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token, user_id: data.user.id }),
+              }).catch(() => { /* ignore errors */});
+            }
+          })
+          .catch((e) => console.error("Service worker registration failed", e));
+      }
 
       // ── Redirect based on department ──
       const dashboardKey = data.user.dashboard as string | null;

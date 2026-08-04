@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import {
     Table, Button, Input, Select, Modal, message,
 } from "antd";
@@ -605,8 +604,6 @@ function CampaignDetailModal({ campaign, open, onClose }: {
                 <InfoRow label="Age" value={campaign.age} />
                 <InfoRow label="Gender" value={campaign.gender} />
                 <InfoRow label="Platform / Inventory" value={campaign.platforms} />
-                <InfoRow label="Frequency Cap" value={campaign.frequency_cap} />
-                <InfoRow label="Brand Safety" value={campaign.brand_safety} />
                 <InfoRow label="Geo Targeting" value={geoText as string} />
 
                 <SectionTitle icon="💰" title="Final CPM & Price" />
@@ -677,7 +674,6 @@ function fmtDateTimeShort(v?: string | null) {
 }
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function All_Campaigns() {
-    const navigate = useNavigate();
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -1040,7 +1036,7 @@ export default function All_Campaigns() {
             {/* ── Table ── */}
             <div style={{ background: "var(--bg-card)", borderRadius: 14, border: `1px solid var(--border)`, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
                 <Table
-                    columns={columns} dataSource={filtered} rowKey="campaign_id" loading={loading}
+                    columns={columns} dataSource={filtered} rowKey="id" loading={loading}
                     scroll={{ x: 2200 }}
                     pagination={{ pageSize: 10, showSizeChanger: true, pageSizeOptions: ["10", "20", "50"], showTotal: (total, range) => `${range[0]}–${range[1]} of ${total} campaigns`, style: { padding: "12px 16px" } }}
                     expandable={{

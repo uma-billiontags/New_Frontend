@@ -42,6 +42,7 @@ const NAV: NavGroup[] = [
       { label: "Campaigns", icon: ClipboardList, to: "/account_manager/campaigns" },
       { label: "Insertion Order", icon: ClipboardList, to: "/account_manager/io" },
       { label: "Daily Reports", icon: ClipboardList, to: "/account_manager/daily_reports" },
+            { label: "Campaign Reports", icon: ClipboardList, to: "/account_manager/campaign_reports" },
     ],
   },
    {
