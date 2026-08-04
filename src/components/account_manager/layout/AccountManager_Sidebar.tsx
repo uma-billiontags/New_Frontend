@@ -37,9 +37,18 @@ const NAV: NavGroup[] = [
     ],
   },
   {
-    section: "Campaigns",
+    section: "CAMPAIGNS",
     items: [
       { label: "Campaigns", icon: ClipboardList, to: "/account_manager/campaigns" },
+      { label: "Insertion Order", icon: ClipboardList, to: "/account_manager/io" },
+      { label: "Daily Reports", icon: ClipboardList, to: "/account_manager/daily_reports" },
+    ],
+  },
+   {
+    section: "FINANCE",
+    items: [
+      { label: "Invoice", icon: ClipboardList, to: "/account_manager/invoice" },
+      { label: "Invoice Download", icon: ClipboardList, to: "/account_manager/invoice_download" },
     ],
   },
   {

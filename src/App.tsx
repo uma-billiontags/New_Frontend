@@ -48,6 +48,10 @@ import CampaignTeam_Overview from "./components/campaign_team/layout/CampaignTea
 import Campaign_Campaigns from "./components/campaign_team/Campaign_Campaigns";
 import Campaign_My_Completed_Tasks from "./components/campaign_team/status/Campaign_My_Completed_Tasks";
 import Campaign_My_Incompleted_Tasks from "./components/campaign_team/status/Campaign_My_Incompleted_Tasks";
+import Insertion_Order from "./components/account_manager/Insertion_Order";
+import Daily_Reports from "./components/account_manager/Daily_Reports";
+import Invoices from "./components/account_manager/Invoices";
+import Invoice_Download from "./components/account_manager/Invoice_Download";
 
 function App() {
 
@@ -90,6 +94,10 @@ function App() {
           <Route path="campaigns" element={<All_Campaigns />} />
           <Route path="status/completed_users" element={<AM_Completed_Users />} />
           <Route path="status/overdue_users" element={<AM_Overdue_Users />} />
+          <Route path="io" element={<Insertion_Order />} />
+          <Route path="daily_reports" element={<Daily_Reports />} />
+          <Route path="invoice" element={<Invoices />} />
+          <Route path="invoice_download" element={<Invoice_Download />} />
         </Route>
 
         {/* Creative Team */}

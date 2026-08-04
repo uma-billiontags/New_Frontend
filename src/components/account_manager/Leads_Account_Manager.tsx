@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
-import { Table, Button, Input, Modal } from "antd";
+import { Table, Button, Input, Modal, Select } from "antd";
 import {
     SearchOutlined, ReloadOutlined, EyeOutlined,
     MailOutlined, LinkOutlined, CloseOutlined, PaperClipOutlined,
-    RocketOutlined, CheckCircleOutlined
+    RocketOutlined, CheckCircleOutlined, EditOutlined
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+
+const { Option } = Select;
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -32,8 +34,6 @@ interface Lead {
     attachments: LeadAttachment[];
     ticket_id: string | null;
     client_id: number | null;
-    task_status?: string | null;
-    assigned_at?: string | null;
     has_campaign?: boolean;   // ← ADD THIS
 }
 
@@ -49,6 +49,17 @@ function fmtDateTime(v?: string) {
 function truncate(text: string, len: number) {
     if (!text) return "—";
     return text.length > len ? text.slice(0, len) + "…" : text;
+}
+
+function isToday(v?: string) {
+    if (!v) return false;
+    const d = new Date(v);
+    const today = new Date();
+    return (
+        d.getFullYear() === today.getFullYear() &&
+        d.getMonth() === today.getMonth() &&
+        d.getDate() === today.getDate()
+    );
 }
 
 function parseSender(raw: string): { name: string; email: string } {
@@ -88,6 +99,53 @@ function SenderCell({ raw, variant = "sender" }: { raw: string; variant?: "sende
     );
 }
 
+
+function CategoryCell({
+    lead, categories, isEditing, onEdit, onCancel, onSave, saving,
+    selectedCategory, setSelectedCategory,
+}: {
+    lead: Lead;
+    categories: { id: number; name: string }[];
+    isEditing: boolean;
+    onEdit: () => void;
+    onCancel: () => void;
+    onSave: () => void;
+    saving: boolean;
+    selectedCategory: string;
+    setSelectedCategory: (v: string) => void;
+}) {
+    if (isEditing) {
+        return (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Select
+                    size="small"
+                    placeholder="Select category"
+                    value={selectedCategory || undefined}
+                    onChange={setSelectedCategory}
+                    style={{ width: 140 }}
+                    options={categories.map((c) => ({ value: c.name, label: c.name }))}
+                />
+                <Button size="small" type="primary" loading={saving}
+                    onClick={onSave} disabled={!selectedCategory}
+                    style={{ height: 24, fontSize: 11 }}>
+                    Save
+                </Button>
+                <Button size="small" onClick={onCancel} style={{ height: 24, fontSize: 11 }}>✕</Button>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <CategoryBadge status={lead.category_status} name={lead.category_name} />
+            {lead.category_status === "uncategory" && (
+                <EditOutlined onClick={onEdit}
+                    style={{ fontSize: 12, color: "var(--text-muted)", cursor: "pointer" }} />
+            )}
+        </div>
+    );
+}
+
 function CategoryBadge({ status, name }: { status: string; name: string | null }) {
     if (status === "category" && name) {
         return (
@@ -111,27 +169,6 @@ function CategoryBadge({ status, name }: { status: string; name: string | null }
     );
 }
 
-// ── Task status badge — pending / in_progress / completed ────────────────────
-function TaskStatusBadge({ status }: { status?: string | null }) {
-    if (!status) return <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>;
-    const map: Record<string, { color: string; bg: string; label: string }> = {
-        pending: { color: "var(--amber)", bg: "var(--amber-bg)", label: "Pending" },
-        in_progress: { color: "var(--blue)", bg: "var(--blue-bg)", label: "In Progress" },
-        completed: { color: "var(--green)", bg: "var(--green-bg)", label: "Completed" },
-        cancelled: { color: "var(--red)", bg: "var(--red-bg)", label: "Cancelled" },
-    };
-    const s = map[status] ?? { color: "var(--text-muted)", bg: "var(--bg-page)", label: status };
-    return (
-        <span style={{
-            fontSize: 11, fontWeight: 700, color: s.color, background: s.bg,
-            border: `1px solid ${s.color}`, padding: "2px 10px", borderRadius: 6,
-            display: "inline-block", whiteSpace: "nowrap",
-        }}>
-            {s.label}
-        </span>
-    );
-}
-
 function AttachmentList({ attachments }: { attachments: LeadAttachment[] }) {
     if (!attachments?.length) return <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>;
     return (
@@ -151,16 +188,26 @@ function AttachmentList({ attachments }: { attachments: LeadAttachment[] }) {
         </div>
     );
 }
-
-function StatCard({ label, value, changeLabel, changeType }: {
-    label: string; value: number; changeLabel: string; changeType: "up" | "down" | "neutral";
+function StatCard({ label, value, changeLabel, changeType, active, onClick }: {
+    label: string; value: number; changeLabel: string;
+    changeType: "up" | "down" | "neutral"; active?: boolean; onClick?: () => void;
 }) {
     return (
-        <div className="db-stat-card" style={{ border: "2px solid transparent" }}>
+        <div
+            onClick={onClick}
+            className="db-stat-card"
+            style={{
+                cursor: onClick ? "pointer" : "default",
+                border: active ? "1px solid var(--text-muted)" : "2px solid transparent",
+                transition: "border-color 0.15s",
+            }}
+        >
             <div className="db-stat-label">{label}</div>
             <div className="db-stat-value">{value}</div>
-            <div className={`db-stat-change ${changeType === "neutral" ? "" : changeType}`}
-                style={changeType === "neutral" ? { color: "var(--text-muted)" } : undefined}>
+            <div
+                className={`db-stat-change ${changeType === "neutral" ? "" : changeType}`}
+                style={changeType === "neutral" ? { color: "var(--text-muted)" } : undefined}
+            >
                 {changeLabel}
             </div>
         </div>
@@ -186,17 +233,7 @@ function LeadDetailModal({ lead, onClose }: { lead: Lead | null; onClose: () => 
     if (!lead) return null;
     return (
         <Modal
-            open={!!lead} onCancel={onClose} footer={null} width={680} centered destroyOnClose
-            closeIcon={
-                <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.28)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#fff", fontSize: 14, cursor: "pointer",
-                }}>
-                    <CloseOutlined style={{ fontSize: 13 }} />
-                </div>
-            }
+            open={!!lead} onCancel={onClose} footer={null} width={880} centered destroyOnClose
             style={{ padding: 10, borderRadius: 16, overflow: "hidden" }}
             className="lead-detail-modal"
         >
@@ -291,15 +328,23 @@ function LeadDetailModal({ lead, onClose }: { lead: Lead | null; onClose: () => 
                 <div style={{ display: "flex", gap: 10 }}>
                     {lead.mail_link && (
                         <a href={lead.mail_link} target="_blank" rel="noopener noreferrer">
-                            <Button icon={<LinkOutlined />} style={{
-                                height: 36, borderRadius: 8, fontSize: 12, fontWeight: 700,
-                                color: "var(--accent)", borderColor: "var(--accent)", background: "var(--accent-light)",
-                            }}>
+                            <Button
+                                icon={<LinkOutlined />}
+                                style={{
+                                    height: 36, borderRadius: 8, fontSize: 12, fontWeight: 700,
+                                    color: "var(--amber)", borderColor: "var(--amber)", background: "var(--amber-bg)",
+                                }}
+                            >
                                 Open Mail
                             </Button>
                         </a>
                     )}
-                    <Button onClick={onClose} style={{ height: 36, borderRadius: 8, border: "1px solid var(--border)", color: "var(--text-muted)", fontSize: 12, fontWeight: 600 }}>
+                    <Button
+                        onClick={onClose}
+                        style={{
+                            height: 36, borderRadius: 8, fontSize: 12, fontWeight: 700,
+                            color: "var(--accent)", borderColor: "var(--accent)", background: "var(--accent-light)",
+                        }}                    >
                         Close
                     </Button>
                 </div>
@@ -314,47 +359,97 @@ export default function Leads_Account_Manager() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+    const [cardFilter, setCardFilter] = useState<"all" | "today" | "uncategorized">("all");
+    const [categoryFilter, setCategoryFilter] = useState<string>("all");
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
     const showToast = (message: string, type: "success" | "error" = "success") => setToast({ message, type });
 
-    const fetchMyLeads = useCallback(() => {
-        const userId = localStorage.getItem("user_id");
-        if (!userId) { setLeads([]); setLoading(false); return; }
+    const fetchLeads = useCallback(() => {
         setLoading(true);
-        fetch(`${BASE_URL}/tasks/get_my_leads/?user_id=${userId}&task_type=lead_handling`, {
-            headers: { "ngrok-skip-browser-warning": "1" },
-        })
+        fetch(`${BASE_URL}/leads/get_leads/`, { headers: { "ngrok-skip-browser-warning": "1" } })
             .then((r) => {
                 if (!r.ok) throw new Error();
                 return r.json();
             })
-            .then((data) => setLeads(Array.isArray(data) ? data : []))
+            .then((data) => {
+                const list: Lead[] = Array.isArray(data) ? data : data.leads || [];
+                setLeads(list);
+            })
             .catch(() => {
                 setLeads([]);
-                showToast("Failed to load your assigned leads.", "error");
+                showToast("Failed to load leads.", "error");
             })
             .finally(() => setLoading(false));
     }, []);
 
-    useEffect(() => { fetchMyLeads(); }, [fetchMyLeads]);
+    useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
     const totalCount = leads.length;
-    const pendingCount = leads.filter((l) => l.task_status === "pending").length;
-    const inProgressCount = leads.filter((l) => l.task_status === "in_progress").length;
-    const completedCount = leads.filter((l) => l.task_status === "completed").length;
+    const todayCount = leads.filter((l) => isToday(l.received_at)).length;
+    const uniqueSenders = new Set(leads.map((l) => l.sender)).size;
+
+    const uncategorizedCount = leads.filter((l) => l.category_status === "uncategory").length;
+    const withCampaignCount = leads.filter((l) => l.has_campaign).length;
+
+    const categoryOptions = Array.from(
+        new Set(leads.filter((l) => l.category_status === "category" && l.category_name).map((l) => l.category_name as string))
+    );
 
     const filtered = leads.filter((l) => {
+        if (cardFilter === "today" && !isToday(l.received_at)) return false;
+        if (cardFilter === "uncategorized" && l.category_status !== "uncategory") return false;
+
         const q = search.toLowerCase();
-        return (
+        const matchesSearch =
             !q ||
             l.sender?.toLowerCase().includes(q) ||
+            l.receiver?.toLowerCase().includes(q) ||
             l.subject?.toLowerCase().includes(q) ||
             l.thread_id?.toLowerCase().includes(q) ||
-            l.ticket_id?.toLowerCase().includes(q) ||
-            l.body?.toLowerCase().includes(q)
-        );
+            l.body?.toLowerCase().includes(q);
+
+        const matchesCategory =
+            categoryFilter === "all" ||
+            (categoryFilter === "uncategory" && l.category_status === "uncategory") ||
+            (categoryFilter !== "all" && categoryFilter !== "uncategory" && l.category_name === categoryFilter);
+
+        return matchesSearch && matchesCategory;
     });
+
+    const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+    const [editingLeadId, setEditingLeadId] = useState<number | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string>("");
+    const [savingCategory, setSavingCategory] = useState(false);
+
+    useEffect(() => {
+        fetch(`${BASE_URL}/leads/get_lead_categories/`, { headers: { "ngrok-skip-browser-warning": "1" } })
+            .then((r) => r.json())
+            .then((data) => setCategories(Array.isArray(data) ? data : data.results || []))
+            .catch(() => setCategories([]));
+    }, []);
+
+    const handleSaveCategory = async (leadId: number) => {
+        if (!selectedCategory) return;
+        setSavingCategory(true);
+        try {
+            const res = await fetch(`${BASE_URL}/leads/categorize_lead/${leadId}/`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ category_name: selectedCategory }),
+            });
+            if (!res.ok) throw new Error();
+            const updated: Lead = await res.json();
+            setLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)));
+            showToast(`Categorized as "${selectedCategory}" — ticket ${updated.ticket_id} generated.`);
+            setEditingLeadId(null);
+            setSelectedCategory("");
+        } catch {
+            showToast("Failed to update category.", "error");
+        } finally {
+            setSavingCategory(false);
+        }
+    };
 
     const handleCreateCampaign = (lead: Lead) => {
         const params = new URLSearchParams();
@@ -386,13 +481,24 @@ export default function Leads_Account_Manager() {
                 : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>—</span>,
         },
         {
-            title: "Category", key: "category", width: 180,
-            render: (_: any, record: Lead) => <CategoryBadge status={record.category_status} name={record.category_name} />,
+            title: "Category",
+            key: "category",
+            width: 230,
+            render: (_: string, record: Lead) => (
+                <CategoryCell
+                    lead={record}
+                    categories={categories}
+                    isEditing={editingLeadId === record.id}
+                    onEdit={() => { setEditingLeadId(record.id); setSelectedCategory(""); }}
+                    onCancel={() => { setEditingLeadId(null); setSelectedCategory(""); }}
+                    onSave={() => handleSaveCategory(record.id)}
+                    saving={savingCategory}
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                />
+            ),
         },
-        {
-            title: "Task Status", key: "task_status", width: 130,
-            render: (_: any, record: Lead) => <TaskStatusBadge status={record.task_status} />,
-        },
+
         {
             title: "Subject", dataIndex: "subject", key: "subject", width: 240,
             render: (v: string) => <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>{truncate(v, 60)}</span>,
@@ -419,11 +525,11 @@ export default function Leads_Account_Manager() {
                 <div style={{ display: "flex", gap: 6 }}>
                     <Button size="small" icon={<EyeOutlined />} onClick={() => setSelectedLead(record)}
                         style={{
-                            fontSize: 11, fontWeight: 600, color: "var(--text-primary)",
-                            background: "var(--accent-light)", border: "1px solid var(--border-strong)", borderRadius: 6,
-                        }}>
-                        View
-                    </Button>
+                            fontSize: 11,
+                            fontWeight: 600,
+                            borderRadius: 6,
+                            color: "var(--blue)", borderColor: "var(--blue)", background: "var(--blue-bg)"
+                        }}>View</Button>
                     {record.has_campaign ? (
                         <Button size="small" disabled icon={<CheckCircleOutlined />}
                             style={{
@@ -435,7 +541,7 @@ export default function Leads_Account_Manager() {
                         </Button>
                     ) : (
                         <Button size="small" type="primary" icon={<RocketOutlined />} onClick={() => handleCreateCampaign(record)}
-                            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, color: "var(--amber)", background: "var(--amber-bg)", border: "1px solid var(--amber)", opacity: 1,}}>
+                            style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, color: "var(--amber)", background: "var(--amber-bg)", border: "1px solid var(--amber)", opacity: 1, }}>
                             Create Campaign
                         </Button>
                     )}
@@ -461,13 +567,55 @@ export default function Leads_Account_Manager() {
                 </div>
             </div>
 
-            <div className="db-stat-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-                <StatCard label="Total Assigned" value={totalCount} changeLabel="All your leads" changeType="neutral" />
-                <StatCard label="Pending" value={pendingCount} changeLabel={pendingCount > 0 ? "Needs action" : "None pending"} changeType={pendingCount > 0 ? "down" : "neutral"} />
-                <StatCard label="In Progress" value={inProgressCount} changeLabel="Being worked on" changeType="neutral" />
-                <StatCard label="Completed" value={completedCount} changeLabel="Wrapped up" changeType={completedCount > 0 ? "up" : "neutral"} />
-            </div>
-
+            <div className="db-stat-grid" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
+                <StatCard
+                    label="Total Leads"
+                    value={totalCount}
+                    changeLabel={`${todayCount} received today`}
+                    changeType={todayCount > 0 ? "up" : "neutral"}
+                    active={cardFilter === "all"}
+                    onClick={() => setCardFilter("all")}
+                />
+                <StatCard
+                    label="Received Today"
+                    value={todayCount}
+                    changeLabel={todayCount > 0 ? "New activity" : "No leads today"}
+                    changeType={todayCount > 0 ? "up" : "neutral"}
+                    active={cardFilter === "today"}
+                    onClick={() => setCardFilter(cardFilter === "today" ? "all" : "today")}
+                />
+                <StatCard
+                    label="Unique Senders"
+                    value={uniqueSenders}
+                    changeLabel="Distinct contacts"
+                    changeType="neutral"
+                    active={false}
+                    onClick={() => { }}
+                />
+                <StatCard
+                    label="Uncategorized"
+                    value={uncategorizedCount}
+                    changeLabel={uncategorizedCount > 0 ? "Needs review" : "All categorized"}
+                    changeType={uncategorizedCount > 0 ? "down" : "neutral"}
+                    active={cardFilter === "uncategorized"}
+                    onClick={() => setCardFilter(cardFilter === "uncategorized" ? "all" : "uncategorized")}
+                />
+                <StatCard label="Campaigns Created" value={withCampaignCount} changeLabel="Converted leads" changeType="up" />
+                <StatCard label="Awaiting Campaign" value={totalCount - withCampaignCount} changeLabel="Not yet converted" changeType="neutral" />            </div>
+            {cardFilter !== "all" && (
+                <div style={{ marginBottom: 12, marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Filtered by:</span>
+                    <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 12px", borderRadius: 5,
+                        background: cardFilter === "today" ? "var(--green-bg)" : "var(--amber-bg)",
+                        border: `1px solid ${cardFilter === "today" ? "var(--green)" : "var(--amber)"}`,
+                        fontSize: 9, fontWeight: 600, color: cardFilter === "today" ? "var(--green)" : "var(--amber)",
+                    }}>
+                        {cardFilter === "today" ? "Received Today" : "Uncategorized Leads"}
+                        <button onClick={() => setCardFilter("all")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: 8, padding: 0 }}>✕</button>
+                    </span>
+                </div>
+            )}
             <div style={{
                 background: "var(--bg-card)", borderRadius: 12, padding: "14px 18px",
                 border: "1px solid var(--border)", marginBottom: 16, marginTop: 12,
@@ -481,7 +629,18 @@ export default function Leads_Account_Manager() {
                     allowClear
                     style={{ flex: 1, minWidth: 240, height: 36 }}
                 />
-                <Button onClick={fetchMyLeads} icon={<ReloadOutlined />} className="db-card-action"
+                <Select
+                    value={categoryFilter}
+                    onChange={(v) => setCategoryFilter(v)}
+                    style={{ width: 200, height: 36 }}
+                >
+                    <Option value="all">All categories</Option>
+                    <Option value="uncategory">Uncategorized only</Option>
+                    {categoryOptions.map((c) => (
+                        <Option key={c} value={c}>{c}</Option>
+                    ))}
+                </Select>
+                <Button onClick={fetchLeads} icon={<ReloadOutlined />} className="db-card-action"
                     style={{ height: 36, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, paddingInline: 14 }}>
                     Refresh
                 </Button>
@@ -518,8 +677,9 @@ export default function Leads_Account_Manager() {
             <style>{`
                 .lead-detail-modal .ant-modal-content { padding: 0 !important; border-radius: 16px !important; overflow: hidden !important; border: none !important; }
                 .lead-detail-modal .ant-modal-header { display: none !important; }
-                .lead-detail-modal .ant-modal-close { display: none !important; }
                 .lead-detail-modal .ant-modal-body { padding: 0 !important; }
+                .lead-detail-modal .ant-modal-close { color: #fff; top: 14px; right: 14px; }
+
             `}</style>
         </div>
     );

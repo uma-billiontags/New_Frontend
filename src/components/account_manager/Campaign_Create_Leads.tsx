@@ -103,14 +103,13 @@ function loadDraft(): Record<string, any> | null {
 }
 function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } }
 
-function generateLineItemId(index: number, offset: number, prefix: string): string {
-    const paddedIndex = String(offset + index - 1).padStart(3, "0");
-    return `LI${prefix}${paddedIndex}`;
+function generateLineItemId(): string {
+    return `TEMP_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function emptyLineItem(index: number, offset: number, prefix: string): LeadLineItem {
+function emptyLineItem(): LeadLineItem {
     return {
-        id: generateLineItemId(index, offset, prefix),
+        id: generateLineItemId(),
         lineItemName: "", ethnicity: "", startDate: "", endDate: "",
         adFormat: "", impressions: "", units: "", rate: "",
         ctr: "0.4", viewability: "70", vcr: "70", ctrNotes: "",
@@ -122,25 +121,6 @@ function isLineItemComplete(li: LeadLineItem): boolean {
     return !!(li.lineItemName.trim() && li.startDate && li.endDate && li.adFormat);
 }
 
-async function fetchLastLineItemOffset(prefixRaw: string): Promise<number> {
-    try {
-        const prefix = `LI${prefixRaw}`;
-        const res = await fetch(`${BASE_URL}/campaign/get_campaigns/`, {
-            headers: { Accept: "application/json", "ngrok-skip-browser-warning": "1" },
-        });
-        if (!res.ok) return 1;
-        const data = await res.json();
-        const allIds: string[] = [];
-        (data || []).forEach((c: any) => {
-            (c.line_items || []).forEach((li: any) => {
-                if (li.line_item_id && li.line_item_id.startsWith(prefix)) allIds.push(li.line_item_id);
-            });
-        });
-        if (allIds.length === 0) return 1;
-        const nums = allIds.map((id) => parseInt(id.replace(prefix, ""), 10)).filter((n) => !isNaN(n));
-        return nums.length === 0 ? 1 : Math.max(...nums) + 1;
-    } catch { return 1; }
-}
 // ── Geo Targeting (country → state → city cascade) ───────────────────────────
 // ── Geo Targeting (country → state → city cascade, with "+ Add new" support) ──
 function GeoTargeting({ locations, onAdd, onRemove }: {
@@ -756,10 +736,8 @@ export default function Campaign_Create_Leads() {
     const [objective, setObjective] = useState<string>(restoredData?.objective ?? "");
     const [notes, setNotes] = useState<string>(restoredData?.notes ?? "");
 
-    // ── Line items (multiple, each carries its own targeting) ──
-    const [lineItemOffset, setLineItemOffset] = useState<number>(restoredData?.lineItemOffset ?? 1);
     const [lineItems, setLineItems] = useState<LeadLineItem[]>(
-        restoredData?.lineItems?.length ? restoredData.lineItems : [emptyLineItem(1, 1, "LEAD")]
+        restoredData?.lineItems?.length ? restoredData.lineItems : [emptyLineItem()]
     );
     const [lineItemCreatives, setLineItemCreatives] = useState<LineItemCreativesMap>(() => {
         if (isReturnFromCreative && locationState?.allLineItemCreatives) {
@@ -797,22 +775,13 @@ export default function Campaign_Create_Leads() {
             headers: { Accept: "application/json", "ngrok-skip-browser-warning": "1" },
         })
             .then((r) => r.json())
-            .then(async (data) => {
-                const name = data.name || "";
-                setClientName(name);
+            .then((data) => {
+                setClientName(data.name || "");
                 const currencyCode = data.billing?.billing_currency || data.billing_currency || "INR";
                 setClientCurrencySymbol(currencySymbolFor(currencyCode));
-                if (!shouldRestoreDraft) {
-                    const userName = localStorage.getItem("user_name") || "";
-                    const prefix = userName ? userName.replace(/\s+/g, "").substring(0, 4).toUpperCase() : "LEAD";
-                    const offset = await fetchLastLineItemOffset(prefix);
-                    setLineItemOffset(offset);
-                    setLineItems([emptyLineItem(1, offset, prefix)]);
-                }
             })
             .catch(() => setClientName(""))
             .finally(() => setLoadingClient(false));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clientIdParam]);
 
     // ── Pick up creatives handed back from the upload pages ──
@@ -831,29 +800,23 @@ export default function Campaign_Create_Leads() {
         saveDraft({
             clientCampaignId, purchaseOrderId, campaignName, campaignType,
             startDate, endDate, buyingType, objective, notes,
-            lineItemOffset, lineItems,
+            lineItems,
         });
     }, [clientCampaignId, purchaseOrderId, campaignName, campaignType, startDate, endDate,
-        buyingType, objective, notes, lineItemOffset, lineItems]);
+        buyingType, objective, notes, lineItems]);
 
-    const clientPrefix = (() => {
-        const userName = localStorage.getItem("user_name") || "";
-        return userName ? userName.replace(/\s+/g, "").substring(0, 4).toUpperCase() : "LEAD";
-    })();
+
     // ── Line item handlers ──
     const handleLineItemChange = useCallback((id: string, field: keyof LeadLineItem, value: any) => {
         setLineItems((prev) => prev.map((li) => (li.id === id ? { ...li, [field]: value } : li)));
     }, []);
 
     const handleAddLineItem = () => {
-        setLineItems((prev) => [...prev, emptyLineItem(prev.length + 1, lineItemOffset, clientPrefix)]);
+        setLineItems((prev) => [...prev, emptyLineItem()]);
     };
 
     const handleRemoveLineItem = (id: string) => {
-        setLineItems((prev) => {
-            const filtered = prev.filter((li) => li.id !== id);
-            return filtered.map((li, idx) => ({ ...li, id: generateLineItemId(idx + 1, lineItemOffset, clientPrefix) }));
-        });
+        setLineItems((prev) => prev.filter((li) => li.id !== id));
     };
 
     // ── Route to the right creative upload page based on ad format ──
@@ -964,6 +927,10 @@ export default function Campaign_Create_Leads() {
                     unit_cost: unitCostBudget !== "" ? `${clientCurrencySymbol}${unitCostBudget}` : "",
                     age: li.age.join(", "),
                     gender: li.gender.join(", "),
+                    ctr: li.ctr,                    // ← add
+                    viewability: li.viewability,    // ← add
+                    vcr: li.vcr,                    // ← add
+                    ctr_notes: li.ctrNotes,         // ← add (optional, but you're collecting it — may as well keep it)
                     geo_targeting: JSON.stringify(li.geoLocations.map((loc) => ({
                         country: loc.country || "", state: loc.state || "", address: loc.address || "",
                         city: loc.city || "", zipcode: loc.zipcode || "", range: loc.range || "",

@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { Table, Button, Input, Modal, Select, Form } from "antd";
+import { Table, Button, Input, Modal, Select } from "antd";
 import {
     SearchOutlined, ReloadOutlined, EyeOutlined,
-    MailOutlined, LinkOutlined, CloseOutlined, PaperClipOutlined, EditOutlined, UserAddOutlined
+    MailOutlined, LinkOutlined, PaperClipOutlined, EditOutlined, DeleteOutlined
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 
@@ -33,23 +33,6 @@ interface Lead {
     attachments: LeadAttachment[];
     ticket_id: string | null;        // ← NEW
     client_id: number | null;           // ← NEW
-}
-
-interface DeptRoleUsers {
-    role_id: number;
-    role_title: string;
-    users: { id: number; username: string; email: string }[];
-}
-
-interface TaskAssignmentInfo {
-    id: number;
-    ticket_id: string;
-    task_type: string;
-    assigned_to: number | null;
-    assigned_to_name: string | null;
-    role_title: string | null;
-    department_title: string | null;
-    status: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -290,19 +273,9 @@ function LeadDetailModal({ lead, onClose }: { lead: Lead | null; onClose: () => 
             open={!!lead}
             onCancel={onClose}
             footer={null}
-            width={680}
+            width={880}
             centered
             destroyOnClose
-            closeIcon={
-                <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.28)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#fff", fontSize: 14, cursor: "pointer",
-                }}>
-                    <CloseOutlined style={{ fontSize: 13 }} />
-                </div>
-            }
             style={{ padding: 10, borderRadius: 16, overflow: "hidden" }}
             className="lead-detail-modal"
         >
@@ -418,7 +391,7 @@ function LeadDetailModal({ lead, onClose }: { lead: Lead | null; onClose: () => 
                                 icon={<LinkOutlined />}
                                 style={{
                                     height: 36, borderRadius: 8, fontSize: 12, fontWeight: 700,
-                                    color: "var(--accent)", borderColor: "var(--accent)", background: "var(--accent-light)",
+                                    color: "var(--amber)", borderColor: "var(--amber)", background: "var(--amber-bg)",
                                 }}
                             >
                                 Open Mail
@@ -427,8 +400,10 @@ function LeadDetailModal({ lead, onClose }: { lead: Lead | null; onClose: () => 
                     )}
                     <Button
                         onClick={onClose}
-                        style={{ height: 36, borderRadius: 8, border: "1px solid var(--border)", color: "var(--text-muted)", fontSize: 12, fontWeight: 600 }}
-                    >
+                        style={{
+                            height: 36, borderRadius: 8, fontSize: 12, fontWeight: 700,
+                            color: "var(--accent)", borderColor: "var(--accent)", background: "var(--accent-light)",
+                        }}                    >
                         Close
                     </Button>
                 </div>
@@ -449,29 +424,6 @@ export default function Leads() {
 
     const showToast = (message: string, type: "success" | "error" = "success") => setToast({ message, type });
 
-    const [assignments, setAssignments] = useState<Record<string, TaskAssignmentInfo>>({});
-    const [assigningLead, setAssigningLead] = useState<Lead | null>(null);
-    const [deptRoles, setDeptRoles] = useState<DeptRoleUsers[]>([]);
-    const [loadingDeptRoles, setLoadingDeptRoles] = useState(false);
-    const [selectedRoleId, setSelectedRoleId] = useState<number | undefined>();
-    const [selectedUserId, setSelectedUserId] = useState<number | undefined>();
-    const [assigningSaving, setAssigningSaving] = useState(false);
-
-    const fetchAssignments = useCallback((leadList: Lead[]) => {
-        const ticketIds = leadList.filter((l) => l.ticket_id).map((l) => l.ticket_id as string);
-        if (ticketIds.length === 0) { setAssignments({}); return; }
-        fetch(`${BASE_URL}/tasks/get_assignments_for_tickets/?ticket_ids=${ticketIds.join(",")}&task_type=lead_handling`, {
-            headers: { "ngrok-skip-browser-warning": "1" },
-        })
-            .then((r) => r.json())
-            .then((data: TaskAssignmentInfo[]) => {
-                const map: Record<string, TaskAssignmentInfo> = {};
-                data.forEach((a) => { map[a.ticket_id] = a; });
-                setAssignments(map);
-            })
-            .catch(() => setAssignments({}));
-    }, []);
-
     const fetchLeads = useCallback(() => {
         setLoading(true);
         fetch(`${BASE_URL}/leads/get_leads/`, { headers: { "ngrok-skip-browser-warning": "1" } })
@@ -482,16 +434,39 @@ export default function Leads() {
             .then((data) => {
                 const list: Lead[] = Array.isArray(data) ? data : data.leads || [];
                 setLeads(list);
-                fetchAssignments(list);   // ← added
             })
             .catch(() => {
                 setLeads([]);
                 showToast("Failed to load leads.", "error");
             })
             .finally(() => setLoading(false));
-    }, [fetchAssignments]);
+    }, []);
 
     useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+    const handleDelete = (lead: Lead) => {
+        Modal.confirm({
+            title: "Delete this lead?",
+            content: `This will permanently remove "${truncate(lead.subject, 60)}" and its attachments.`,
+            okText: "Delete",
+            okButtonProps: { danger: true },
+            cancelText: "Cancel",
+            centered: true,
+            onOk: async () => {
+                try {
+                    const res = await fetch(`${BASE_URL}/leads/delete_lead/${lead.id}/`, {
+                        method: "DELETE",
+                        headers: { "ngrok-skip-browser-warning": "1" },
+                    });
+                    if (!res.ok) throw new Error();
+                    setLeads((prev) => prev.filter((l) => l.id !== lead.id));
+                    showToast("Lead deleted.");
+                } catch {
+                    showToast("Failed to delete lead.", "error");
+                }
+            },
+        });
+    };
 
     const totalCount = leads.length;
     const todayCount = leads.filter((l) => isToday(l.received_at)).length;
@@ -563,52 +538,6 @@ export default function Leads() {
         window.open(`/onboarding?email=${encodeURIComponent(email)}&leadId=${lead.id}`,
             "_blank");
     };
-
-    const openAssignModal = (lead: Lead) => {
-        setAssigningLead(lead);
-        setSelectedRoleId(undefined);
-        setSelectedUserId(undefined);
-        setLoadingDeptRoles(true);
-        fetch(`${BASE_URL}/tasks/get_department_users/${encodeURIComponent("Account Manager")}/`, {
-            headers: { "ngrok-skip-browser-warning": "1" },
-        })
-            .then((r) => r.json())
-            .then((data: DeptRoleUsers[]) => setDeptRoles(Array.isArray(data) ? data : []))
-            .catch(() => {
-                setDeptRoles([]);
-                showToast("Failed to load Account Manager team.", "error");
-            })
-            .finally(() => setLoadingDeptRoles(false));
-    };
-
-    const handleAssignTask = async () => {
-        if (!assigningLead?.ticket_id || !selectedRoleId || !selectedUserId) return;
-        setAssigningSaving(true);
-        try {
-            const res = await fetch(`${BASE_URL}/tasks/assign_task/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
-                body: JSON.stringify({
-                    ticket_id: assigningLead.ticket_id,
-                    task_type: "lead_handling",
-                    role_id: selectedRoleId,
-                    user_id: selectedUserId,
-                    assigned_by_id: localStorage.getItem("user_id") || null,
-                }),
-            });
-            if (!res.ok) throw new Error();
-            const updated: TaskAssignmentInfo = await res.json();
-            setAssignments((prev) => ({ ...prev, [updated.ticket_id]: updated }));
-            showToast(`Lead assigned to ${updated.assigned_to_name}.`);
-            setAssigningLead(null);
-        } catch {
-            showToast("Failed to assign task.", "error");
-        } finally {
-            setAssigningSaving(false);
-        }
-    };
-
-    const usersForSelectedRole = deptRoles.find((r) => r.role_id === selectedRoleId)?.users ?? [];
 
     useEffect(() => {
         const channel = new BroadcastChannel("leads-updates");
@@ -748,47 +677,31 @@ export default function Leads() {
         {
             title: "Actions",
             key: "actions",
-            width: 220,
+            width: 160,
             fixed: "right",
-            render: (_: any, record: Lead) => {
-                const assignment = record.ticket_id ? assignments[record.ticket_id] : undefined;
-                return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ display: "flex", gap: 6 }}>
-                            <Button
-                                size="small"
-                                icon={<EyeOutlined />}
-                                onClick={() => setSelectedLead(record)}
-                                style={{
-                                    fontSize: 11, fontWeight: 600, color: "var(--text-primary)",
-                                    background: "var(--accent-light)", border: "1px solid var(--border-strong)", borderRadius: 6,
-                                }}
-                            >
-                                View
-                            </Button>
-                            <Button
-                                size="small"
-                                icon={<UserAddOutlined />}
-                                disabled={!record.ticket_id}
-                                onClick={() => openAssignModal(record)}
-                                title={!record.ticket_id ? "Categorize this lead first to generate a ticket ID" : ""}
-                                style={{ fontSize: 11, fontWeight: 600, borderRadius: 6 }}
-                            >
-                                {assignment ? "Reassign" : "Assign Task"}
-                            </Button>
-                        </div>
-                        {assignment && (
-                            <span style={{
-                                fontSize: 10, fontWeight: 700, color: "var(--green)",
-                                background: "var(--green-bg)", border: "1px solid var(--green)",
-                                padding: "1px 8px", borderRadius: 6, display: "inline-block", width: "fit-content",
-                            }}>
-                                → {assignment.assigned_to_name}
-                            </span>
-                        )}
-                    </div>
-                );
-            },
+            render: (_: any, record: Lead) => (
+                <div style={{ display: "flex", gap: 6 }}>
+                    <Button
+                        size="small"
+                        icon={<EyeOutlined />}
+                        onClick={() => setSelectedLead(record)}
+                        style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            borderRadius: 6,
+                            color: "var(--blue)", borderColor: "var(--blue)", background: "var(--blue-bg)"
+                        }}>View</Button>
+                    <Button
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDelete(record)}
+                        style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            borderRadius: 6, color: "var(--red)", borderColor: "var(--red)", background: "var(--red-bg)"
+                        }}>Delete</Button>
+                </div>
+            ),
         },
     ];
 
@@ -925,52 +838,6 @@ export default function Leads() {
             </div>
 
             <LeadDetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
-            <Modal
-                open={!!assigningLead}
-                onCancel={() => setAssigningLead(null)}
-                onOk={handleAssignTask}
-                confirmLoading={assigningSaving}
-                title="Assign Lead — Account Manager"
-                okText="Assign"
-                okButtonProps={{ disabled: !selectedRoleId || !selectedUserId }}
-                width={460}
-                centered
-                destroyOnClose
-            >
-                {assigningLead && (
-                    <div style={{
-                        marginBottom: 16, padding: "10px 14px", background: "var(--bg-page)",
-                        borderRadius: 8, border: "1px solid var(--border)",
-                    }}>
-                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>Ticket</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
-                            {assigningLead.ticket_id} — {truncate(assigningLead.subject, 50)}
-                        </div>
-                    </div>
-                )}
-                <Form layout="vertical">
-                    <Form.Item label="Role (Account Manager Department)" required>
-                        <Select
-                            placeholder={loadingDeptRoles ? "Loading roles…" : "Select role…"}
-                            loading={loadingDeptRoles}
-                            value={selectedRoleId}
-                            onChange={(v) => { setSelectedRoleId(v); setSelectedUserId(undefined); }}
-                            style={{ width: "100%" }}
-                            options={deptRoles.map((r) => ({ value: r.role_id, label: r.role_title }))}
-                        />
-                    </Form.Item>
-                    <Form.Item label="Assign To" required>
-                        <Select
-                            placeholder={selectedRoleId ? "Select person…" : "Select a role first"}
-                            value={selectedUserId}
-                            onChange={setSelectedUserId}
-                            disabled={!selectedRoleId}
-                            style={{ width: "100%" }}
-                            options={usersForSelectedRole.map((u) => ({ value: u.id, label: u.username }))}
-                        />
-                    </Form.Item>
-                </Form>
-            </Modal>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
             <style>{`
@@ -981,8 +848,8 @@ export default function Leads() {
                     border: none !important;
                 }
                 .lead-detail-modal .ant-modal-header { display: none !important; }
-                .lead-detail-modal .ant-modal-close { display: none !important; }
                 .lead-detail-modal .ant-modal-body { padding: 0 !important; }
+                .lead-detail-modal .ant-modal-close { color: #fff; top: 14px; right: 14px; }
             `}</style>
         </div>
     );
